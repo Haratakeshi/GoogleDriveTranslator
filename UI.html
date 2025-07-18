@@ -1,0 +1,1358 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Google Drive翻訳ツール</title>
+  
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+  
+  <!-- Material Icons -->
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: 'Roboto', 'Noto Sans JP', sans-serif;
+      background-color: #f5f5f5;
+      color: #333;
+      line-height: 1.6;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    header {
+      background: linear-gradient(135deg, #4285f4 0%, #34a853 100%);
+      color: white;
+      padding: 20px 0;
+      margin-bottom: 30px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    h1 {
+      text-align: center;
+      font-size: 28px;
+      font-weight: 400;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 30px;
+      border-bottom: 2px solid #e0e0e0;
+      background: white;
+      padding: 0 20px;
+      border-radius: 8px 8px 0 0;
+    }
+    
+    .tab {
+      padding: 15px 25px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+      color: #666;
+      transition: all 0.3s;
+      border-bottom: 3px solid transparent;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .tab:hover {
+      color: #333;
+      background-color: #f5f5f5;
+    }
+    
+    .tab.active {
+      color: #4285f4;
+      border-bottom-color: #4285f4;
+      font-weight: 500;
+    }
+    
+    .tab-content {
+      display: none;
+      animation: fadeIn 0.3s;
+    }
+    
+    .tab-content.active {
+      display: block;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .card {
+      background: white;
+      border-radius: 8px;
+      padding: 30px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    
+    .card h2 {
+      margin-bottom: 20px;
+      color: #333;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: #555;
+    }
+    
+    input[type="text"],
+    input[type="url"],
+    select {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 16px;
+      transition: all 0.3s;
+      background-color: #fafafa;
+    }
+    
+    input[type="text"]:focus,
+    input[type="url"]:focus,
+    select:focus {
+      outline: none;
+      border-color: #4285f4;
+      background-color: white;
+      box-shadow: 0 0 0 3px rgba(66, 133, 244, 0.1);
+    }
+    
+    .button-group {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    
+    button {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 4px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.3s;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .btn-primary {
+      background-color: #4285f4;
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background-color: #357ae8;
+      box-shadow: 0 2px 8px rgba(66, 133, 244, 0.3);
+    }
+    
+    .btn-primary:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+    
+    .btn-secondary {
+      background-color: #f5f5f5;
+      color: #333;
+      border: 1px solid #ddd;
+    }
+    
+    .btn-secondary:hover {
+      background-color: #e8e8e8;
+      border-color: #ccc;
+    }
+    
+    .btn-success {
+      background-color: #34a853;
+      color: white;
+    }
+    
+    .btn-success:hover {
+      background-color: #2e7d32;
+    }
+    
+    .progress-container {
+      display: none;
+      margin-top: 20px;
+      background: #f5f5f5;
+      padding: 20px;
+      border-radius: 4px;
+    }
+    
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background-color: #e0e0e0;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #4285f4 0%, #34a853 100%);
+      width: 0%;
+      transition: width 0.3s;
+    }
+    
+    .progress-status {
+      color: #666;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .result-container {
+      display: none;
+      margin-top: 20px;
+      padding: 20px;
+      border-radius: 4px;
+      border-left: 4px solid;
+    }
+    
+    .result-success {
+      background-color: #e8f5e9;
+      border-left-color: #4caf50;
+    }
+    
+    .result-error {
+      background-color: #ffebee;
+      border-left-color: #f44336;
+    }
+    
+    .result-link {
+      color: #4285f4;
+      text-decoration: none;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    
+    .result-link:hover {
+      text-decoration: underline;
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    
+    .stat-card {
+      background: #f5f5f5;
+      padding: 20px;
+      border-radius: 4px;
+      text-align: center;
+    }
+    
+    .stat-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: #4285f4;
+      margin-bottom: 5px;
+    }
+    
+    .stat-label {
+      color: #666;
+      font-size: 14px;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    
+    th, td {
+      text-align: left;
+      padding: 12px;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    
+    th {
+      background-color: #f5f5f5;
+      font-weight: 500;
+      color: #666;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    
+    tr:hover {
+      background-color: #f9f9f9;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #999;
+    }
+    
+    .empty-state-icon {
+      font-size: 64px;
+      color: #ddd;
+      margin-bottom: 20px;
+    }
+    
+    .dict-actions {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    
+    .dict-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 15px;
+      margin-top: 20px;
+    }
+    
+    .dict-card {
+      background: #f9f9f9;
+      padding: 20px;
+      border-radius: 8px;
+      border: 2px solid #e0e0e0;
+      cursor: pointer;
+      transition: all 0.3s;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .dict-card:hover {
+      border-color: #4285f4;
+      background: white;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    
+    .dict-card.selected {
+      border-color: #4285f4;
+      background: #e3f2fd;
+    }
+    
+    .dict-name {
+      font-weight: 500;
+      font-size: 18px;
+      margin-bottom: 8px;
+      color: #333;
+    }
+    
+    .dict-stats {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 10px;
+    }
+    
+    .dict-count {
+      color: #666;
+      font-size: 14px;
+    }
+    
+    .dict-updated {
+      color: #999;
+      font-size: 12px;
+    }
+    
+    .dict-actions-menu {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      display: flex;
+      gap: 5px;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    
+    .dict-card:hover .dict-actions-menu {
+      opacity: 1;
+    }
+    
+    .icon-button {
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 5px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    
+    .icon-button:hover {
+      background: #f5f5f5;
+      border-color: #ccc;
+    }
+    
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.5);
+      z-index: 1000;
+      backdrop-filter: blur(4px);
+    }
+    
+    .modal-content {
+      position: relative;
+      background: white;
+      width: 90%;
+      max-width: 500px;
+      margin: 50px auto;
+      padding: 30px;
+      border-radius: 8px;
+      animation: slideIn 0.3s;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    }
+    
+    @keyframes slideIn {
+      from {
+        transform: translateY(-50px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+    
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    
+    .modal-close {
+      font-size: 24px;
+      cursor: pointer;
+      color: #999;
+      padding: 0;
+      background: none;
+      border: none;
+    }
+    
+    .modal-close:hover {
+      color: #333;
+    }
+    
+    .loading-spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #4285f4;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-left: 10px;
+      vertical-align: middle;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .help-text {
+      font-size: 14px;
+      color: #666;
+      margin-top: 5px;
+    }
+    
+    .filter-section {
+      background: #f5f5f5;
+      padding: 15px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+      align-items: flex-end;
+    }
+    
+    .filter-group {
+      flex: 1;
+      min-width: 150px;
+    }
+    
+    .filter-group label {
+      font-size: 12px;
+      margin-bottom: 5px;
+    }
+    
+    .filter-group select,
+    .filter-group input {
+      height: 36px;
+      font-size: 14px;
+    }
+    
+    .status-badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    
+    .status-success {
+      background: #d9ead3;
+      color: #1e7e34;
+    }
+    
+    .status-error {
+      background: #f4cccc;
+      color: #a94442;
+    }
+    
+    .status-processing {
+      background: #fff3cd;
+      color: #856404;
+    }
+    
+    @media (max-width: 768px) {
+      .container {
+        padding: 10px;
+      }
+      
+      .card {
+        padding: 20px;
+      }
+      
+      .tabs {
+        overflow-x: auto;
+        white-space: nowrap;
+        padding: 0 10px;
+      }
+      
+      .tab {
+        padding: 10px 15px;
+        font-size: 14px;
+      }
+      
+      .dict-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      
+      .filter-section {
+        flex-direction: column;
+      }
+      
+      .filter-group {
+        width: 100%;
+      }
+    }
+    
+    /* トースト通知 */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #333;
+      color: white;
+      padding: 16px 24px;
+      border-radius: 4px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      opacity: 0;
+      transform: translateY(20px);
+      transition: all 0.3s;
+      z-index: 2000;
+      max-width: 350px;
+    }
+    
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    
+    .toast.success {
+      background: #34a853;
+    }
+    
+    .toast.error {
+      background: #ea4335;
+    }
+    
+    /* ローディングオーバーレイ */
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(255,255,255,0.9);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 3000;
+    }
+    
+    .loading-content {
+      text-align: center;
+    }
+    
+    .loading-spinner-large {
+      width: 50px;
+      height: 50px;
+      border: 5px solid #f3f3f3;
+      border-top: 5px solid #4285f4;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div class="container">
+      <h1>
+        <span class="material-icons">translate</span>
+        Google Drive翻訳ツール
+      </h1>
+    </div>
+  </header>
+  
+  <div class="container">
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('translate')">
+        <span class="material-icons">translate</span>
+        翻訳
+      </button>
+      <button class="tab" onclick="switchTab('history')">
+        <span class="material-icons">history</span>
+        履歴
+      </button>
+      <button class="tab" onclick="switchTab('dictionary')">
+        <span class="material-icons">book</span>
+        辞書管理
+      </button>
+      <button class="tab" onclick="switchTab('statistics')">
+        <span class="material-icons">analytics</span>
+        統計
+      </button>
+    </div>
+    
+    <!-- 翻訳タブ -->
+    <div id="translate-tab" class="tab-content active">
+      <div class="card">
+        <h2>
+          <span class="material-icons">file_copy</span>
+          ファイルを翻訳
+        </h2>
+        
+        <form id="translate-form">
+          <div class="form-group">
+            <label for="file-url">Google Drive ファイルURL</label>
+            <input type="url" id="file-url" placeholder="https://docs.google.com/spreadsheets/d/..." required>
+            <div class="help-text">
+              <span class="material-icons" style="font-size: 14px; vertical-align: middle;">info</span>
+              スプレッドシート、ドキュメント、プレゼンテーションのURLを入力してください
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="target-lang">翻訳先言語</label>
+            <select id="target-lang" required>
+              <option value="">言語を選択...</option>
+              <option value="ja">日本語</option>
+              <option value="en">英語</option>
+              <option value="zh-CN">中国語（簡体字）</option>
+              <option value="zh-TW">中国語（繁体字）</option>
+              <option value="ko">韓国語</option>
+              <option value="es">スペイン語</option>
+              <option value="fr">フランス語</option>
+              <option value="de">ドイツ語</option>
+              <option value="it">イタリア語</option>
+              <option value="pt">ポルトガル語</option>
+              <option value="ru">ロシア語</option>
+              <option value="ar">アラビア語</option>
+              <option value="hi">ヒンディー語</option>
+              <option value="th">タイ語</option>
+              <option value="vi">ベトナム語</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label for="dict-select">使用する辞書（オプション）</label>
+            <div class="button-group">
+              <select id="dict-select" style="flex: 1;">
+                <option value="">辞書を使用しない</option>
+              </select>
+              <button type="button" class="btn-secondary" onclick="showCreateDictModal()">
+                <span class="material-icons" style="font-size: 18px;">add</span>
+                新規作成
+              </button>
+            </div>
+            <div class="help-text">
+              <span class="material-icons" style="font-size: 14px; vertical-align: middle;">lightbulb</span>
+              辞書を使用すると、専門用語の翻訳精度が向上します
+            </div>
+          </div>
+          
+          <div class="button-group">
+            <button type="submit" class="btn-primary" id="translate-btn">
+              <span class="material-icons">translate</span>
+              翻訳を開始
+            </button>
+            <button type="button" class="btn-secondary" onclick="resetForm()">
+              <span class="material-icons">refresh</span>
+              リセット
+            </button>
+          </div>
+        </form>
+        
+        <div class="progress-container" id="progress">
+          <div class="progress-bar">
+            <div class="progress-fill" id="progress-fill"></div>
+          </div>
+          <p id="progress-status" class="progress-status">準備中...</p>
+        </div>
+        
+        <div class="result-container" id="result">
+          <!-- 結果がここに表示されます -->
+        </div>
+      </div>
+    </div>
+    
+    <!-- 履歴タブ -->
+    <div id="history-tab" class="tab-content">
+      <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <h2 style="margin: 0;">
+            <span class="material-icons">history</span>
+            翻訳履歴
+          </h2>
+          <button class="btn-secondary" onclick="openHistorySpreadsheet()">
+            <span class="material-icons" style="font-size: 18px;">open_in_new</span>
+            スプレッドシートで開く
+          </button>
+        </div>
+        
+        <div class="filter-section">
+          <div class="filter-group">
+            <label>ステータス</label>
+            <select id="filter-status" onchange="filterHistory()">
+              <option value="">すべて</option>
+              <option value="success">成功</option>
+              <option value="error">エラー</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>言語</label>
+            <select id="filter-lang" onchange="filterHistory()">
+              <option value="">すべて</option>
+              <option value="ja">日本語</option>
+              <option value="en">英語</option>
+              <option value="zh-CN">中国語（簡体字）</option>
+              <option value="ko">韓国語</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>期間</label>
+            <select id="filter-period" onchange="filterHistory()">
+              <option value="all">すべて</option>
+              <option value="today">今日</option>
+              <option value="week">過去7日間</option>
+              <option value="month">過去30日間</option>
+            </select>
+          </div>
+          <button class="btn-secondary" onclick="refreshHistory()">
+            <span class="material-icons" style="font-size: 18px;">refresh</span>
+            更新
+          </button>
+        </div>
+        
+        <div id="history-content">
+          <div class="empty-state">
+            <div class="material-icons empty-state-icon">hourglass_empty</div>
+            <p>読み込み中...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 辞書管理タブ -->
+    <div id="dictionary-tab" class="tab-content">
+      <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <h2 style="margin: 0;">
+            <span class="material-icons">book</span>
+            辞書管理
+          </h2>
+          <button class="btn-secondary" onclick="openDictionarySpreadsheet()">
+            <span class="material-icons" style="font-size: 18px;">open_in_new</span>
+            スプレッドシートで開く
+          </button>
+        </div>
+        
+        <div class="dict-actions">
+          <button class="btn-primary" onclick="showCreateDictModal()">
+            <span class="material-icons">add</span>
+            新規辞書を作成
+          </button>
+          <button class="btn-secondary" onclick="showImportDictModal()">
+            <span class="material-icons">upload</span>
+            インポート
+          </button>
+          <button class="btn-secondary" onclick="refreshDictionaries()">
+            <span class="material-icons">refresh</span>
+            更新
+          </button>
+        </div>
+        
+        <div id="dictionary-list" class="dict-grid">
+          <div class="empty-state">
+            <div class="material-icons empty-state-icon">book</div>
+            <p>読み込み中...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 統計タブ -->
+    <div id="statistics-tab" class="tab-content">
+      <div class="card">
+        <h2>
+          <span class="material-icons">analytics</span>
+          統計情報
+        </h2>
+        
+        <div class="button-group" style="margin-bottom: 20px;">
+          <button class="btn-secondary" onclick="loadStatistics('today')">今日</button>
+          <button class="btn-secondary" onclick="loadStatistics('week')">今週</button>
+          <button class="btn-secondary" onclick="loadStatistics('month')">今月</button>
+          <button class="btn-primary" onclick="loadStatistics('all')">全期間</button>
+        </div>
+        
+        <div id="statistics-content">
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-value" id="stat-total">0</div>
+              <div class="stat-label">総翻訳数</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="stat-success">0</div>
+              <div class="stat-label">成功</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="stat-chars">0</div>
+              <div class="stat-label">総文字数</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="stat-cost">$0.00</div>
+              <div class="stat-label">推定コスト</div>
+            </div>
+          </div>
+          
+          <div id="detailed-stats">
+            <!-- 詳細統計がここに表示されます -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 辞書作成モーダル -->
+  <div id="create-dict-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>新規辞書を作成</h3>
+        <button class="modal-close" onclick="hideCreateDictModal()">
+          <span class="material-icons">close</span>
+        </button>
+      </div>
+      
+      <form id="create-dict-form">
+        <div class="form-group">
+          <label for="dict-name">辞書名</label>
+          <input type="text" id="dict-name" placeholder="例: 医療用語辞書" required>
+          <div class="help-text">
+            <span class="material-icons" style="font-size: 14px; vertical-align: middle;">info</span>
+            辞書名には特殊文字（: / \ [ ] * ?）は使用できません
+          </div>
+        </div>
+        
+        <div class="button-group">
+          <button type="submit" class="btn-primary">
+            <span class="material-icons">add</span>
+            作成
+          </button>
+          <button type="button" class="btn-secondary" onclick="hideCreateDictModal()">
+            キャンセル
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <!-- インポートモーダル -->
+  <div id="import-dict-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>辞書をインポート</h3>
+        <button class="modal-close" onclick="hideImportDictModal()">
+          <span class="material-icons">close</span>
+        </button>
+      </div>
+      
+      <form id="import-dict-form">
+        <div class="form-group">
+          <label for="import-dict-name">インポート先の辞書</label>
+          <select id="import-dict-name" required>
+            <option value="">辞書を選択...</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="import-file">JSONファイル</label>
+          <input type="file" id="import-file" accept=".json" required>
+          <div class="help-text">
+            エクスポートしたJSONファイルを選択してください
+          </div>
+        </div>
+        
+        <div class="button-group">
+          <button type="submit" class="btn-primary">
+            <span class="material-icons">upload</span>
+            インポート
+          </button>
+          <button type="button" class="btn-secondary" onclick="hideImportDictModal()">
+            キャンセル
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <!-- トースト通知 -->
+  <div id="toast" class="toast"></div>
+  
+  <!-- ローディングオーバーレイ -->
+  <div id="loading-overlay" class="loading-overlay">
+    <div class="loading-content">
+      <div class="loading-spinner-large"></div>
+      <p>処理中...</p>
+    </div>
+  </div>
+  
+  <script>
+    // --- グローバル変数 ---
+    let currentTab = 'translate';
+    let dictionaries = [];
+    let historyData = [];
+    let systemInfo = null;
+    let currentTask = { id: null, totalJobs: 0, completedJobs: 0, targetFileUrl: null };
+
+    // --- 初期化 ---
+    document.addEventListener('DOMContentLoaded', function() {
+      initializeApp();
+    });
+
+    function initializeApp() {
+      // イベントリスナーを設定
+      document.getElementById('translate-form').addEventListener('submit', handleTranslateSetup);
+      document.getElementById('create-dict-form').addEventListener('submit', handleCreateDict);
+      document.getElementById('import-dict-form').addEventListener('submit', handleImportDict);
+      
+      // 初期データを読み込み
+      loadDictionaries();
+      loadHistory();
+      checkSystemStatus();
+      
+      // URLパラメータから初期値を設定
+      const urlParams = new URLSearchParams(window.location.search);
+      const fileUrl = urlParams.get('fileUrl');
+      if (fileUrl) {
+        document.getElementById('file-url').value = decodeURIComponent(fileUrl);
+      }
+    }
+
+    // --- 翻訳キュー処理 ---
+    function handleTranslateSetup(e) {
+      e.preventDefault();
+      
+      const fileUrl = document.getElementById('file-url').value;
+      const targetLang = document.getElementById('target-lang').value;
+      const dictName = document.getElementById('dict-select').value;
+      
+      if (!fileUrl || !targetLang) {
+        showToast('必須項目を入力してください', 'error');
+        return;
+      }
+      
+      setUiLock(true, '翻訳ジョブを準備中...');
+      
+      google.script.run
+        .withSuccessHandler(setupResponse => {
+          if (setupResponse.error) {
+            handleError(setupResponse.error);
+            return;
+          }
+          if (setupResponse.totalJobs === 0) {
+            showResult('success', '翻訳対象のテキストが見つかりませんでした。', setupResponse.targetFileUrl);
+            setUiLock(false);
+            return;
+          }
+
+          currentTask = {
+            id: setupResponse.taskId,
+            totalJobs: setupResponse.totalJobs,
+            completedJobs: 0,
+            targetFileUrl: setupResponse.targetFileUrl
+          };
+
+          updateProgress();
+          processQueue(); // キュー処理を開始
+        })
+        .withFailureHandler(handleError)
+        .setupTranslationQueue(fileUrl, targetLang, dictName);
+    }
+
+    function processQueue() {
+      if (!currentTask.id) return;
+
+      google.script.run
+        .withSuccessHandler(processResponse => {
+          if (processResponse.status === 'error') {
+            showToast(processResponse.message, 'error');
+            // エラーでも次の処理を試みる
+          }
+
+          if (processResponse.status === 'processing') {
+            currentTask.completedJobs = processResponse.completedJobs;
+            updateProgress();
+            setTimeout(processQueue, 100); // 次のジョブを処理
+          } else if (processResponse.status === 'complete') {
+            currentTask.completedJobs = currentTask.totalJobs;
+            updateProgress();
+            showResult('success', '翻訳が完了しました！', currentTask.targetFileUrl);
+            setUiLock(false);
+            // 履歴を更新
+            setTimeout(loadHistory, 1000);
+          }
+        })
+        .withFailureHandler(error => {
+            showToast('通信エラーが発生しました。3秒後に再試行します。', 'error');
+            console.error(error);
+            setTimeout(processQueue, 3000); // エラー時は少し待ってリトライ
+        })
+        .processNextInQueue(currentTask.id);
+    }
+
+    function updateProgress() {
+      const progressFill = document.getElementById('progress-fill');
+      const progressStatus = document.getElementById('progress-status');
+      const percentage = currentTask.totalJobs > 0 ? 
+        (currentTask.completedJobs / currentTask.totalJobs) * 100 : 0;
+      
+      progressFill.style.width = percentage + '%';
+      progressStatus.textContent = `翻訳中... (${currentTask.completedJobs} / ${currentTask.totalJobs})`;
+    }
+
+    function setUiLock(isLocked, message = '') {
+      document.getElementById('translate-btn').disabled = isLocked;
+      const progressContainer = document.getElementById('progress');
+      const progressStatus = document.getElementById('progress-status');
+      
+      if (isLocked) {
+        progressContainer.style.display = 'block';
+        progressStatus.textContent = message;
+        document.getElementById('result').style.display = 'none';
+      } else {
+        progressContainer.style.display = 'none';
+      }
+    }
+
+    function showResult(type, message, url) {
+      const resultContainer = document.getElementById('result');
+      const success = type === 'success';
+      
+      resultContainer.className = success ? 'result-container result-success' : 'result-container result-error';
+      resultContainer.innerHTML = `
+        <h3 style="margin: 0 0 10px 0; color: ${success ? '#2e7d32' : '#c62828'};">
+          <span class="material-icons" style="vertical-align: middle;">${success ? 'check_circle' : 'error'}</span>
+          ${message}
+        </h3>
+        ${url ? `
+        <p style="margin-top: 15px;">
+          <a href="${url}" target="_blank" class="result-link">
+            <span class="material-icons">open_in_new</span>
+            翻訳されたファイルを開く
+          </a>
+        </p>` : ''}
+      `;
+      resultContainer.style.display = 'block';
+    }
+
+    function handleError(error) {
+      const message = error.message || error.toString();
+      showResult('error', `エラーが発生しました: ${message}`);
+      setUiLock(false);
+    }
+
+    // --- タブとデータ読み込み ---
+    function checkSystemStatus() {
+      google.script.run
+        .withSuccessHandler(info => {
+          if (info) systemInfo = info;
+        })
+        .withFailureHandler(console.error)
+        .getSystemInfo();
+    }
+
+    function switchTab(tabName) {
+      currentTab = tabName;
+      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+      event.target.closest('.tab').classList.add('active');
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+      document.getElementById(`${tabName}-tab`).classList.add('active');
+      
+      if (tabName === 'history') loadHistory();
+      if (tabName === 'dictionary') refreshDictionaries();
+      if (tabName === 'statistics') loadStatistics('all');
+    }
+
+    function loadDictionaries() {
+      google.script.run
+        .withSuccessHandler(dicts => {
+          dictionaries = dicts || [];
+          updateDictionarySelect();
+          updateImportDictionarySelect();
+        })
+        .withFailureHandler(console.error)
+        .getDictionaryList();
+    }
+
+    function updateDictionarySelect() {
+      const select = document.getElementById('dict-select');
+      select.innerHTML = '<option value="">辞書を使用しない</option>';
+      (dictionaries || []).forEach(dict => {
+        const option = document.createElement('option');
+        option.value = dict.name;
+        option.textContent = `${dict.name} (${dict.termCount}語)`;
+        select.appendChild(option);
+      });
+    }
+
+    function updateImportDictionarySelect() {
+      const select = document.getElementById('import-dict-name');
+      select.innerHTML = '<option value="">辞書を選択...</option>';
+      (dictionaries || []).forEach(dict => {
+        const option = document.createElement('option');
+        option.value = dict.name;
+        option.textContent = dict.name;
+        select.appendChild(option);
+      });
+    }
+
+    function loadHistory() {
+      const container = document.getElementById('history-content');
+      container.innerHTML = '<div class="empty-state"><div class="material-icons empty-state-icon">hourglass_empty</div><p>読み込み中...</p></div>';
+      google.script.run
+        .withSuccessHandler(history => {
+          historyData = history || [];
+          displayHistory(historyData);
+        })
+        .withFailureHandler(error => {
+          showToast('履歴の読み込みに失敗しました', 'error');
+          console.error(error);
+        })
+        .getTranslationHistory(100);
+    }
+
+    function displayHistory(history) {
+      const container = document.getElementById('history-content');
+      if (!history || history.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="material-icons empty-state-icon">history</div><p>翻訳履歴がありません</p></div>';
+        return;
+      }
+      const table = document.createElement('table');
+      table.innerHTML = `
+        <thead>
+          <tr>
+            <th>日時</th>
+            <th>ファイル名</th>
+            <th>種類</th>
+            <th>翻訳先言語</th>
+            <th>文字数</th>
+            <th>処理時間</th>
+            <th>ステータス</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${history.map(item => {
+            const date = new Date(item.timestamp);
+            const dateStr = date.toLocaleDateString('ja-JP') + ' ' + date.toLocaleTimeString('ja-JP');
+            const fileTypeIcon = getFileTypeIcon(item.fileType);
+            const statusBadge = getStatusBadge(item.status);
+            return `
+              <tr>
+                <td>${dateStr}</td>
+                <td><a href="${item.sourceUrl}" target="_blank" class="result-link">${item.fileName}</a></td>
+                <td><span class="material-icons" title="${item.fileType}">${fileTypeIcon}</span></td>
+                <td>${getLanguageName(item.targetLang)}</td>
+                <td>${item.charCountSource.toLocaleString()} → ${item.charCountTarget.toLocaleString()}</td>
+                <td>${item.duration}秒</td>
+                <td>${statusBadge}</td>
+                <td>${item.targetUrl ? `<a href="${item.targetUrl}" target="_blank" class="result-link"><span class="material-icons">open_in_new</span></a>` : '-'}</td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      `;
+      container.innerHTML = '';
+      container.appendChild(table);
+    }
+
+    function filterHistory() { /* ... */ }
+    function refreshHistory() { loadHistory(); }
+    function loadStatistics(period) { /* ... */ }
+    
+    // --- 辞書管理 ---
+    function handleCreateDict(e) {
+      e.preventDefault();
+      const dictName = document.getElementById('dict-name').value.trim();
+      if (!dictName) return;
+      showLoading();
+      google.script.run
+        .withSuccessHandler(result => {
+          hideLoading();
+          if (result.success) {
+            hideCreateDictModal();
+            refreshDictionaries();
+            showToast(result.message, 'success');
+          } else {
+            showToast(result.message, 'error');
+          }
+        })
+        .withFailureHandler(handleError)
+        .createDictionary(dictName);
+    }
+
+    function handleImportDict(e) { /* ... */ }
+
+    function refreshDictionaries() {
+      const listContainer = document.getElementById('dictionary-list');
+      listContainer.innerHTML = '<div class="empty-state"><div class="material-icons empty-state-icon">hourglass_empty</div><p>読み込み中...</p></div>';
+      google.script.run
+        .withSuccessHandler(dicts => {
+          dictionaries = dicts || [];
+          displayDictionaries();
+          updateDictionarySelect();
+          updateImportDictionarySelect();
+        })
+        .withFailureHandler(error => showToast('辞書の読み込みに失敗しました', 'error'))
+        .getDictionaryList();
+    }
+
+    function displayDictionaries() {
+      const container = document.getElementById('dictionary-list');
+      if (!dictionaries || dictionaries.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="material-icons empty-state-icon">book</div><p>辞書がありません</p></div>';
+        return;
+      }
+      container.innerHTML = dictionaries.map(dict => {
+        const lastUpdated = dict.lastUpdated ? new Date(dict.lastUpdated).toLocaleDateString('ja-JP') : '未更新';
+        return `
+          <div class="dict-card" onclick="selectDictionary('${dict.name}')">
+            <div class="dict-name">${dict.name}</div>
+            <div class="dict-stats">
+              <div class="dict-count">${dict.termCount}個の用語</div>
+              <div class="dict-updated">更新: ${lastUpdated}</div>
+            </div>
+            <div class="dict-actions-menu">
+              <button class="icon-button" onclick="event.stopPropagation(); exportDictionary('${dict.name}')" title="エクスポート"><span class="material-icons">download</span></button>
+              <button class="icon-button" onclick="event.stopPropagation(); deleteDictionary('${dict.name}')" title="削除"><span class="material-icons">delete</span></button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function selectDictionary(dictName) {
+      document.getElementById('dict-select').value = dictName;
+      showToast(`辞書「${dictName}」を選択しました`, 'success');
+    }
+
+    function exportDictionary(dictName) { /* ... */ }
+    function deleteDictionary(dictName) { /* ... */ }
+
+    // --- モーダル処理 ---
+    function showCreateDictModal() { document.getElementById('create-dict-modal').style.display = 'block'; }
+    function hideCreateDictModal() { document.getElementById('create-dict-modal').style.display = 'none'; }
+    function showImportDictModal() { document.getElementById('import-dict-modal').style.display = 'block'; }
+    function hideImportDictModal() { document.getElementById('import-dict-modal').style.display = 'none'; }
+
+    // --- その他ヘルパー関数 ---
+    function getLanguageName(code) {
+      const languages = { 'auto': '自動検出', 'ja': '日本語', 'en': '英語', 'zh-CN': '中国語（簡体字）', 'zh-TW': '中国語（繁体字）', 'ko': '韓国語', 'es': 'スペイン語', 'fr': 'フランス語', 'de': 'ドイツ語', 'it': 'イタリア語', 'pt': 'ポルトガル語', 'ru': 'ロシア語', 'ar': 'アラビア語', 'hi': 'ヒンディー語', 'th': 'タイ語', 'vi': 'ベトナム語' };
+      return languages[code] || code;
+    }
+    function getFileTypeIcon(type) {
+      const icons = { 'spreadsheet': 'grid_on', 'document': 'description', 'presentation': 'slideshow' };
+      return icons[type] || 'insert_drive_file';
+    }
+    function getStatusBadge(status) {
+      const badges = { 'success': '<span class="status-badge status-success">成功</span>', 'error': '<span class="status-badge status-error">エラー</span>' };
+      return badges[status] || status;
+    }
+    function resetForm() {
+      document.getElementById('translate-form').reset();
+      document.getElementById('result').style.display = 'none';
+      setUiLock(false);
+    }
+    function showToast(message, type = 'info') {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = `toast ${type} show`;
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+    function showLoading() { document.getElementById('loading-overlay').style.display = 'flex'; }
+    function hideLoading() { document.getElementById('loading-overlay').style.display = 'none'; }
+    function openHistorySpreadsheet() { if (systemInfo && systemInfo.historySheetUrl) window.open(systemInfo.historySheetUrl, '_blank'); }
+    function openDictionarySpreadsheet() { if (systemInfo && systemInfo.dictionarySheetUrl) window.open(systemInfo.dictionarySheetUrl, '_blank'); }
+
+  </script>
+</body>
+</html>
