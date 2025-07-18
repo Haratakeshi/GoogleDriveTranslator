@@ -123,7 +123,15 @@ function setupTranslationQueue(fileUrl, targetLang, dictName) {
       targetLang: targetLang,
       dictName: dictName || '',
       targetFileId: targetFileInfo.id,
-      originalFileType: fileInfo.type
+      originalFileType: fileInfo.type,
+      // 履歴記録用データ
+      sourceUrl: fileUrl,
+      targetUrl: targetFileInfo.url,
+      sourceLang: CONFIG.DEFAULT_SOURCE_LANG,
+      totalSourceChars: 0,
+      totalTargetChars: 0,
+      totalDuration: 0,
+      startTime: new Date().getTime()
     };
     cache.put(taskId, JSON.stringify(taskData), 21600); // 6時間有効
     log('INFO', `[${taskId}] タスクデータをキャッシュに保存しました。`);
@@ -191,6 +199,9 @@ function processNextInQueue(taskId) {
       return { status: 'error', message: '翻訳ジョブが不正な状態です。' };
     }
 
+    // 処理時間測定開始
+    const jobStartTime = new Date().getTime();
+
     // テキストを翻訳
     const translator = new Translator(dictName);
     const translationResult = translator.translateText(job.text, targetLang, confirmedDictionary);
@@ -201,6 +212,17 @@ function processNextInQueue(taskId) {
     // 翻訳結果をファイルに書き込む
     const fileHandler = new FileHandler();
     fileHandler.writeTranslatedJob(targetFileId, originalFileType, job, translatedText);
+
+    // 処理時間測定終了と統計情報の更新
+    const jobEndTime = new Date().getTime();
+    const jobDuration = (jobEndTime - jobStartTime) / 1000; // 秒単位
+    const sourceChars = job.text ? job.text.length : 0;
+    const targetChars = translatedText ? translatedText.length : 0;
+    
+    // 統計情報を累積
+    taskData.totalSourceChars += sourceChars;
+    taskData.totalTargetChars += targetChars;
+    taskData.totalDuration += jobDuration;
 
     // 新しい用語ペアの品質管理
     if (dictName && newTermCandidates && newTermCandidates.length > 0) {
@@ -220,6 +242,27 @@ function processNextInQueue(taskId) {
     
     // 最後のジョブを処理した場合
     if (jobs.length === 0) {
+      // 翻訳履歴を記録
+      try {
+        const history = new History();
+        const totalDuration = taskData.totalDuration + ((new Date().getTime() - taskData.startTime) / 1000);
+        const historyData = {
+          sourceUrl: taskData.sourceUrl || '',
+          targetUrl: taskData.targetUrl || '',
+          sourceLang: taskData.sourceLang || CONFIG.DEFAULT_SOURCE_LANG,
+          targetLang: targetLang,
+          dictName: dictName,
+          charCountSource: taskData.totalSourceChars || 0,
+          charCountTarget: taskData.totalTargetChars || 0,
+          duration: Math.round(totalDuration),
+          status: 'success'
+        };
+        history.record(historyData);
+        log('INFO', `[${taskId}] 翻訳履歴を記録しました`);
+      } catch (e) {
+        log('ERROR', `[${taskId}] 翻訳履歴の記録に失敗しました`, { message: e.message, stack: e.stack });
+      }
+      
       cache.remove(taskId); // タスク完了なのでキャッシュを削除
       cache.remove(dictionaryCacheKey); // 辞書キャッシュも削除
       log('INFO', `タスク完了: ${taskId}`);
@@ -242,6 +285,35 @@ function processNextInQueue(taskId) {
 
   } catch (error) {
     log('ERROR', `ジョブ処理エラー: ${taskId}`, { error: error.message, stack: error.stack });
+    
+    // エラーが発生した場合も履歴を記録
+    if (taskData) {
+      try {
+        const history = new History();
+        const totalDuration = taskData.totalDuration + ((new Date().getTime() - taskData.startTime) / 1000);
+        const historyData = {
+          sourceUrl: taskData.sourceUrl || '',
+          targetUrl: taskData.targetUrl || '',
+          sourceLang: taskData.sourceLang || CONFIG.DEFAULT_SOURCE_LANG,
+          targetLang: taskData.targetLang || '',
+          dictName: taskData.dictName || '',
+          charCountSource: taskData.totalSourceChars || 0,
+          charCountTarget: taskData.totalTargetChars || 0,
+          duration: Math.round(totalDuration),
+          status: 'error',
+          errorMessage: error.message
+        };
+        history.record(historyData);
+        log('INFO', `[${taskId}] エラー履歴を記録しました`);
+      } catch (e) {
+        log('ERROR', `[${taskId}] エラー履歴の記録に失敗しました`, { message: e.message, stack: e.stack });
+      }
+      
+      // キャッシュをクリア
+      cache.remove(taskId);
+      cache.remove(`${taskId}_dictionary`);
+    }
+    
     // エラーが発生してもキュー処理を止めないために、エラー情報を返し、次の処理を促す
     const completedJobs = taskData ? (taskData.totalJobs - taskData.jobs.length) : 'N/A';
     const totalJobs = taskData ? taskData.totalJobs : 'N/A';

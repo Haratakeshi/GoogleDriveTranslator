@@ -627,6 +627,28 @@ class Dictionary {
       }
       
       // シートを複製
+      const newSheet = sourceSheet.copyTo(this.spreadsheet);
+      newSheet.setName(targetName);
+      
+      // キャッシュをクリア
+      this.cache.clear();
+      
+      log('INFO', `辞書「${sourceName}」を「${targetName}」として複製しました`);
+      
+      return {
+        success: true,
+        message: `辞書を複製しました`
+      };
+      
+    } catch (error) {
+      log('ERROR', '辞書複製エラー', error);
+      return {
+        success: false,
+        message: error.message
+      };
+    }
+  }
+  
   /**
    * 正規化されたキーを使用して、複数の用語を一括で高速検索します。
    * 完全一致、部分一致、あいまい一致の結果を分類して返します。
@@ -773,27 +795,6 @@ class Dictionary {
     } catch (error) {
       log('ERROR', '類似用語の検索エラー', { dictName, term, threshold, error: error.message });
       return [];
-    }
-  }
-      const newSheet = sourceSheet.copyTo(this.spreadsheet);
-      newSheet.setName(targetName);
-      
-      // キャッシュをクリア
-      this.cache.clear();
-      
-      log('INFO', `辞書「${sourceName}」を「${targetName}」として複製しました`);
-      
-      return {
-        success: true,
-        message: `辞書を複製しました`
-      };
-      
-    } catch (error) {
-      log('ERROR', '辞書複製エラー', error);
-      return {
-        success: false,
-        message: error.message
-      };
     }
   }
 }
