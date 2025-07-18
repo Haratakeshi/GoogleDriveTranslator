@@ -167,68 +167,89 @@ class Dictionary {
    * @param {string} text - 検索対象テキスト
    * @return {Array} マッチした用語の配列
    */
-  getTerms(dictName, text) {
-    if (!dictName || !text) return [];
-    
-    try {
-      // キャッシュチェック
-      const cacheKey = `${dictName}_terms`;
-      let allTerms = this.cache.get(cacheKey);
-      
-      if (!allTerms) {
-        // キャッシュミスの場合はスプレッドシートから取得
-        const sheet = this.spreadsheet.getSheetByName(dictName);
-        if (!sheet) {
-          log('WARN', `辞書「${dictName}」が見つかりません`);
-          return [];
-        }
-        
-        const lastRow = sheet.getLastRow();
-        if (lastRow <= 1) return []; // ヘッダーのみ
-        
-        const data = sheet.getRange(2, 1, lastRow - 1, 6).getValues();
-        allTerms = data.map((row, index) => ({
-          source: row[0],
-          target: row[1],
-          pos: row[2],
-          notes: row[3],
-          rowIndex: index + 2 // スプレッドシートの行番号
-        })).filter(term => term.source && term.target);
-        
-        // キャッシュに保存（5分間）
-        this.cache.set(cacheKey, allTerms);
-        Utilities.sleep(10); // API制限対策
+  /**
+   * 辞書の全用語を取得またはキャッシュから読み込む（内部ヘルパー）
+   * @param {string} dictName - 辞書名
+   * @return {Array} 辞書の全用語の配列
+   * @private
+   */
+  _getOrCacheAllTerms(dictName) {
+    const cacheKey = `${dictName}_terms_all_data`;
+    let allTerms = this.cache.get(cacheKey);
+
+    if (!allTerms) {
+      const sheet = this.spreadsheet.getSheetByName(dictName);
+      if (!sheet) {
+        log('WARN', `辞書「${dictName}」が見つかりません`);
+        return [];
       }
+
+      const lastRow = sheet.getLastRow();
+      if (lastRow <= 1) {
+        return [];
+      }
+
+      const data = sheet.getRange(2, 1, lastRow - 1, 6).getValues();
+      allTerms = data.map((row, index) => ({
+        source: row[0],
+        target: row[1],
+        pos: row[2],
+        notes: row[3],
+        createdAt: row[4],
+        usageCount: row[5],
+        rowIndex: index + 2
+      })).filter(term => term.source && term.target);
       
-      // テキストに含まれる用語を検索
+      this.cache.set(cacheKey, allTerms);
+    }
+    return allTerms;
+  }
+
+  /**
+   * 辞書から用語を検索
+   * @param {string} dictName - 辞書名
+   * @param {string} text - 検索対象テキスト
+   * @param {boolean} [useNormalization=false] - 正規化検索を行うか
+   * @return {Array} マッチした用語の配列
+   */
+  getTerms(dictName, text, useNormalization = false) {
+    if (!dictName || !text) return [];
+
+    try {
+      const allTerms = this._getOrCacheAllTerms(dictName);
+      if (!allTerms || allTerms.length === 0) {
+        return [];
+      }
+
       const foundTerms = [];
-      const lowerText = text.toLowerCase();
       
-      allTerms.forEach(term => {
-        // 大文字小文字を無視して検索
-        if (lowerText.includes(term.source.toLowerCase())) {
-          foundTerms.push({
-            source: term.source,
-            target: term.target,
-            pos: term.pos,
-            notes: term.notes,
-            rowIndex: term.rowIndex
-          });
-        }
-      });
-      
-      // 長い用語を優先（より具体的な翻訳を適用）
+      if (useNormalization) {
+        const normalizedText = Utils.normalizeTerm(text);
+        allTerms.forEach(term => {
+          const normalizedSource = Utils.normalizeTerm(term.source);
+          if (normalizedSource && normalizedText.includes(normalizedSource)) {
+            foundTerms.push(term);
+          }
+        });
+      } else {
+        const lowerText = text.toLowerCase();
+        allTerms.forEach(term => {
+          if (lowerText.includes(term.source.toLowerCase())) {
+            foundTerms.push(term);
+          }
+        });
+      }
+
       foundTerms.sort((a, b) => b.source.length - a.source.length);
-      
-      // 使用回数を更新
+
       if (foundTerms.length > 0) {
         this.updateUsageCount(dictName, foundTerms);
       }
-      
+
       return foundTerms;
-      
+
     } catch (error) {
-      log('ERROR', '用語検索エラー', error);
+      log('ERROR', '用語検索エラー', { dictName, useNormalization, error: error.message });
       return [];
     }
   }
@@ -606,6 +627,154 @@ class Dictionary {
       }
       
       // シートを複製
+  /**
+   * 正規化されたキーを使用して、複数の用語を一括で高速検索します。
+   * 完全一致、部分一致、あいまい一致の結果を分類して返します。
+   * @param {string} dictName - 辞書名
+   * @param {Array<string>} terms - 検索する用語の配列
+   * @return {{exact: Array, partial: Array, fuzzy: Array}} 分類された検索結果
+   */
+  searchTermsWithNormalizedKeys(dictName, terms) {
+    if (!dictName || !terms || !Array.isArray(terms) || terms.length === 0) {
+      return { exact: [], partial: [], fuzzy: [] };
+    }
+
+    try {
+      const allTerms = this._getOrCacheAllTerms(dictName);
+      if (allTerms.length === 0) {
+        return { exact: [], partial: [], fuzzy: [] };
+      }
+
+      // パフォーマンス向上のため、正規化済みキーを持つMapを作成
+      const normalizedTermsMap = new Map();
+      allTerms.forEach(term => {
+        const normalizedKey = Utils.normalizeTerm(term.source);
+        if (normalizedKey) {
+          if (!normalizedTermsMap.has(normalizedKey)) {
+            normalizedTermsMap.set(normalizedKey, []);
+          }
+          normalizedTermsMap.get(normalizedKey).push(term);
+        }
+      });
+
+      const results = {
+        exact: [],
+        partial: [],
+        fuzzy: []
+      };
+      const foundSources = new Set(); // 重複結果を避ける
+
+      const normalizedSearchTerms = terms.map(term => Utils.normalizeTerm(term).trim()).filter(Boolean);
+
+      // 1. 完全一致
+      normalizedSearchTerms.forEach(searchTerm => {
+        if (normalizedTermsMap.has(searchTerm)) {
+          normalizedTermsMap.get(searchTerm).forEach(term => {
+            if (!foundSources.has(term.source)) {
+              results.exact.push(term);
+              foundSources.add(term.source);
+            }
+          });
+        }
+      });
+
+      // 2. 部分一致
+      normalizedSearchTerms.forEach(searchTerm => {
+        normalizedTermsMap.forEach((dictTerms, normalizedKey) => {
+          if (normalizedKey.includes(searchTerm) && searchTerm.length < normalizedKey.length) {
+            dictTerms.forEach(term => {
+              if (!foundSources.has(term.source)) {
+                results.partial.push(term);
+                foundSources.add(term.source);
+              }
+            });
+          }
+        });
+      });
+      
+      // 3. あいまい一致
+      const FUZZY_THRESHOLD = 0.8;
+      const allNormalizedKeys = Array.from(normalizedTermsMap.keys());
+
+      normalizedSearchTerms.forEach(searchTerm => {
+        allNormalizedKeys.forEach(normalizedKey => {
+          const similarity = Utils.calculateSimilarityScore(searchTerm, normalizedKey);
+          if (similarity >= FUZZY_THRESHOLD && similarity < 1.0) { // 完全一致は除く
+            const dictTerms = normalizedTermsMap.get(normalizedKey);
+            dictTerms.forEach(term => {
+              if (!foundSources.has(term.source)) {
+                results.fuzzy.push({ ...term, similarity });
+                foundSources.add(term.source);
+              }
+            });
+          }
+        });
+      });
+
+      // あいまい一致の結果を類似度でソート
+      results.fuzzy.sort((a, b) => b.similarity - a.similarity);
+
+      return results;
+
+    } catch (error) {
+      log('ERROR', '正規化キーによる用語検索エラー', { dictName, error: error.message });
+      return { exact: [], partial: [], fuzzy: [] };
+    }
+  }
+
+  /**
+   * 指定された用語に類似する用語を辞書から検索します。
+   * レーベンシュタイン距離とJaccard係数を組み合わせて類似度を評価します。
+   * @param {string} dictName - 辞書名
+   * @param {string} term - 検索する単一の用語
+   * @param {number} [threshold=0.7] - 類似度の閾値 (0.0から1.0)
+   * @return {Array} 類似する用語の配列（類似度スコアを含む）
+   */
+  findSimilarTerms(dictName, term, threshold = 0.7) {
+    if (!dictName || !term) {
+      return [];
+    }
+
+    try {
+      const allTerms = this._getOrCacheAllTerms(dictName);
+      if (allTerms.length === 0) {
+        return [];
+      }
+
+      const normalizedSearchTerm = Utils.normalizeTerm(term);
+      if (!normalizedSearchTerm) return [];
+      
+      const similarTerms = [];
+
+      allTerms.forEach(dictTerm => {
+        const normalizedSource = Utils.normalizeTerm(dictTerm.source);
+        if (!normalizedSource) return;
+
+        // 2つの類似度指標を計算
+        const levenshteinScore = Utils.calculateSimilarityScore(normalizedSearchTerm, normalizedSource);
+        const jaccardScore = Utils.calculateJaccardCoefficient(normalizedSearchTerm, normalizedSource);
+
+        // 類似度スコアを組み合わせる（ここでは加重平均や単純平均など、要件に応じて調整可能）
+        const combinedScore = (levenshteinScore * 0.7) + (jaccardScore * 0.3); // Levenshteinを重視
+
+        if (combinedScore >= threshold) {
+          similarTerms.push({
+            ...dictTerm,
+            similarity: combinedScore
+          });
+        }
+      });
+
+      // 類似度が高い順にソート
+      similarTerms.sort((a, b) => b.similarity - a.similarity);
+
+      return similarTerms;
+
+    } catch (error) {
+      log('ERROR', '類似用語の検索エラー', { dictName, term, threshold, error: error.message });
+      return [];
+    }
+  }
       const newSheet = sourceSheet.copyTo(this.spreadsheet);
       newSheet.setName(targetName);
       

@@ -40,12 +40,12 @@ function include(filename) {
  */
 function setupTranslationQueue(fileUrl, targetLang, dictName) {
   log('INFO', `翻訳キューセットアップ開始: URL=${fileUrl}, 言語=${targetLang}, 辞書=${dictName}`);
-  
+
   try {
     if (!fileUrl || !isValidGoogleDriveUrl(fileUrl)) {
       throw new Error(CONFIG.ERROR_MESSAGES.INVALID_URL);
     }
-    
+
     const fileId = extractFileId(fileUrl);
     if (!fileId) {
       throw new Error(CONFIG.ERROR_MESSAGES.INVALID_URL);
@@ -59,20 +59,66 @@ function setupTranslationQueue(fileUrl, targetLang, dictName) {
     const targetFileInfo = fileHandler.createEmptyTranslatedFile(fileInfo, targetLang);
     log('INFO', `翻訳先ファイル作成: ${targetFileInfo.name}`);
 
+    // タスクIDを先に生成して、後続の処理で利用する
+    const taskId = `task_${new Date().getTime()}`;
+    const cache = CacheService.getUserCache();
+    log('INFO', `タスクID生成: ${taskId}`);
+
+    // --- 事前用語抽出と辞書照合処理 ---
+    try {
+      log('INFO', `[${taskId}] 事前用語抽出処理を開始`);
+
+      // 1. ファイル全体のテキストを一括で抽出
+      const allText = fileHandler.extractAllText(fileInfo);
+      log('INFO', `[${taskId}] テキスト抽出完了。文字数: ${allText ? allText.length : 0}`);
+
+      if (allText && allText.trim().length > 0) {
+        // 2. 用語を抽出
+        const termExtractor = new TermExtractor();
+        const extractionResult = termExtractor.extract(allText, 'auto', targetLang, '一般', {});
+        const extractedTerms = extractionResult.extracted_terms || [];
+        log('INFO', `[${taskId}] 用語抽出完了。抽出数: ${extractedTerms.length}`);
+
+        if (extractedTerms.length > 0) {
+          // 3. 用語を辞書と照合
+          const termMatcher = new TermMatcher();
+          const sourceTerms = extractedTerms.map(t => t.term);
+          const matchResult = termMatcher.match(sourceTerms, dictName);
+          const confirmedPairs = matchResult.confirmedPairs || [];
+          log('INFO', `[${taskId}] 用語照合完了。確定ペア数: ${confirmedPairs.length}`);
+
+          // 4. 確定した辞書データをキャッシュに保存
+          if (confirmedPairs.length > 0) {
+            const dictionaryCacheKey = `${taskId}_dictionary`;
+            cache.put(dictionaryCacheKey, JSON.stringify(confirmedPairs), 21600); // 6時間有効
+            log('INFO', `[${taskId}] 確定辞書をキャッシュに保存しました。キー: ${dictionaryCacheKey}`);
+          } else {
+            log('INFO', `[${taskId}] 確定ペアがなかったため、辞書キャッシュは作成しませんでした。`);
+          }
+        } else {
+          log('INFO', `[${taskId}] 抽出された用語がなかったため、照合処理をスキップしました。`);
+        }
+      } else {
+        log('INFO', `[${taskId}] 翻訳対象のテキストが存在しないため、用語抽出をスキップしました。`);
+      }
+    } catch (e) {
+      // 用語抽出・照合処理でエラーが発生しても、翻訳処理は続行する
+      log('ERROR', `[${taskId}] 事前用語抽出処理でエラーが発生しました。翻訳処理は続行されます。`, { message: e.message, stack: e.stack });
+    }
+    // --- 事前処理ここまで ---
+
     // 翻訳ジョブのリストを作成
     const jobs = fileHandler.createTranslationJobs(fileInfo);
-    log('INFO', `翻訳ジョブを${jobs.length}件作成しました`);
+    log('INFO', `[${taskId}] 翻訳ジョブを${jobs.length}件作成しました`);
 
     if (jobs.length === 0) {
       return { taskId: null, totalJobs: 0, targetFileUrl: targetFileInfo.url, message: '翻訳対象のテキストが見つかりませんでした。' };
     }
 
-    // タスクIDを生成し、ジョブと設定をキャッシュに保存
-    const taskId = `task_${new Date().getTime()}`;
-    const cache = CacheService.getUserCache();
+    // タスクデータをキャッシュに保存
     const taskData = {
       jobs: jobs,
-      totalJobs: jobs.length, // totalJobsを追加
+      totalJobs: jobs.length,
       remainingJobs: jobs.length,
       targetLang: targetLang,
       dictName: dictName || '',
@@ -80,6 +126,7 @@ function setupTranslationQueue(fileUrl, targetLang, dictName) {
       originalFileType: fileInfo.type
     };
     cache.put(taskId, JSON.stringify(taskData), 21600); // 6時間有効
+    log('INFO', `[${taskId}] タスクデータをキャッシュに保存しました。`);
 
     return {
       taskId: taskId,
@@ -88,7 +135,7 @@ function setupTranslationQueue(fileUrl, targetLang, dictName) {
     };
 
   } catch (error) {
-    log('ERROR', '翻訳キューセットアップエラー', error);
+    log('ERROR', '翻訳キューセットアップエラー', { message: error.message, stack: error.stack });
     return { error: error.message };
   }
 }
@@ -107,13 +154,31 @@ function processNextInQueue(taskId) {
     return { status: 'error', message: 'タスクの有効期限が切れました。' };
   }
 
+  let taskData; // catchブロックでも参照できるようスコープを広げる
+
   try {
-    const taskData = JSON.parse(cachedData);
+    taskData = JSON.parse(cachedData);
     const { jobs, targetLang, dictName, targetFileId, originalFileType } = taskData;
+    const dictionaryCacheKey = `${taskId}_dictionary`;
 
     if (!jobs || jobs.length === 0) {
       cache.remove(taskId);
+      cache.remove(dictionaryCacheKey); // 念のため辞書キャッシュも削除
       return { status: 'complete', message: 'すべての翻訳が完了しました。' };
+    }
+
+    // 確定辞書データをキャッシュから取得
+    let confirmedDictionary = [];
+    const cachedDictionary = cache.get(dictionaryCacheKey);
+    if (cachedDictionary) {
+      try {
+        confirmedDictionary = JSON.parse(cachedDictionary);
+        log('INFO', `[${taskId}] キャッシュから確定辞書を取得しました。`, { count: confirmedDictionary.length });
+      } catch (e) {
+        log('WARN', `[${taskId}] 確定辞書のパースに失敗しました。辞書なしで続行します。`, e);
+      }
+    } else {
+      log('INFO', `[${taskId}] 確定辞書キャッシュが見つかりませんでした。`);
     }
 
     // ジョブを1つ取り出す
@@ -122,16 +187,33 @@ function processNextInQueue(taskId) {
     if (!job) {
       log('WARN', `ジョブが不正です: ${taskId}`);
       cache.remove(taskId); // 不正な状態なのでキャッシュをクリア
+      cache.remove(dictionaryCacheKey);
       return { status: 'error', message: '翻訳ジョブが不正な状態です。' };
     }
 
     // テキストを翻訳
     const translator = new Translator(dictName);
-    const translatedText = translator.translateText(job.text, targetLang);
+    const translationResult = translator.translateText(job.text, targetLang, confirmedDictionary);
+    const translatedText = translationResult.translatedText;
+    const newTermCandidates = translationResult.newTermCandidates;
+    log('INFO', `[${taskId}] 翻訳完了。新しい用語候補数: ${newTermCandidates ? newTermCandidates.length : 0}`);
 
     // 翻訳結果をファイルに書き込む
     const fileHandler = new FileHandler();
     fileHandler.writeTranslatedJob(targetFileId, originalFileType, job, translatedText);
+
+    // 新しい用語ペアの品質管理
+    if (dictName && newTermCandidates && newTermCandidates.length > 0) {
+      try {
+        log('INFO', `[${taskId}] 新しい用語ペアの品質管理を開始します。`, { dictName: dictName, count: newTermCandidates.length });
+        const qualityManager = new DictionaryQualityManager();
+        const dictionary = new Dictionary();
+        qualityManager.evaluateAndRegister(newTermCandidates, dictionary, dictName);
+      } catch (e) {
+        // 品質管理でエラーが発生しても処理は続行する
+        log('ERROR', `[${taskId}] 用語の品質管理プロセスでエラーが発生しました。処理は続行されます。`, { message: e.message, stack: e.stack });
+      }
+    }
 
     // キャッシュを更新
     taskData.remainingJobs = jobs.length;
@@ -139,6 +221,7 @@ function processNextInQueue(taskId) {
     // 最後のジョブを処理した場合
     if (jobs.length === 0) {
       cache.remove(taskId); // タスク完了なのでキャッシュを削除
+      cache.remove(dictionaryCacheKey); // 辞書キャッシュも削除
       log('INFO', `タスク完了: ${taskId}`);
       return {
         status: 'complete',
@@ -160,11 +243,13 @@ function processNextInQueue(taskId) {
   } catch (error) {
     log('ERROR', `ジョブ処理エラー: ${taskId}`, { error: error.message, stack: error.stack });
     // エラーが発生してもキュー処理を止めないために、エラー情報を返し、次の処理を促す
-    return { 
-      status: 'error', 
+    const completedJobs = taskData ? (taskData.totalJobs - taskData.jobs.length) : 'N/A';
+    const totalJobs = taskData ? taskData.totalJobs : 'N/A';
+    return {
+      status: 'error',
       message: `エラーが発生しました: ${error.message}`,
-      completedJobs: taskData.totalJobs - jobs.length, // エラー発生時点での完了数
-      totalJobs: taskData.totalJobs
+      completedJobs: completedJobs,
+      totalJobs: totalJobs
     };
   }
 }

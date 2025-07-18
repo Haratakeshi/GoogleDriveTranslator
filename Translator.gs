@@ -11,6 +11,9 @@ class Translator {
     this.model = CONFIG.OPENAI_MODEL;
     this.apiUrl = CONFIG.OPENAI_API_URL;
     this.dictionary = new Dictionary();
+    this.termExtractor = new TermExtractor();
+    this.termMatcher = new TermMatcher();
+    this.qualityManager = new DictionaryQualityManager();
     this.dictName = dictName || '';
   }
 
@@ -18,52 +21,102 @@ class Translator {
    * 単一のテキストを翻訳する
    * @param {string} text - 翻訳するテキスト
    * @param {string} targetLang - 翻訳先言語
+   * @param {Array<Object>|null} preConfirmedPairs - (オプション) 事前に確定した用語ペア
    * @return {string} 翻訳されたテキスト
    */
-  translateText(text, targetLang) {
+  translateText(text, targetLang, preConfirmedPairs = null) {
     if (!text || !text.trim()) {
       return '';
     }
-    // 辞書データを取得
-    const dictTerms = this.dictName ? this.dictionary.getBatchTerms(this.dictName, [text]) : [];
 
-    // 翻訳実行（callOpenAIはテキストの配列を期待するため、配列で渡す）
-    const result = this.callOpenAI([text], targetLang, dictTerms);
+    let confirmedPairs;
 
-    // 新しい用語を辞書に登録
-    if (this.dictName && result.newTerms && result.newTerms.length > 0) {
-      try {
-        this.dictionary.addTerms(this.dictName, result.newTerms);
-      } catch (e) {
-        log('WARN', '辞書への用語追加に失敗しました', e);
-      }
+    if (preConfirmedPairs) {
+      // 事前確定辞書が提供された場合、用語抽出・照合をスキップ
+      confirmedPairs = preConfirmedPairs;
+      log('INFO', '事前確定辞書を使用して翻訳します。', { count: confirmedPairs.length });
+    } else {
+      // 既存の処理：用語抽出と照合
+      // 1. 用語抽出
+      const extractionResult = this.termExtractor.extract(text, 'auto', targetLang);
+      const extractedTerms = extractionResult.extracted_terms.map(t => t.term);
+      log('INFO', '用語抽出完了', { count: extractedTerms.length });
+
+      // 2. 用語照合
+      const matchResult = this.dictName ? this.termMatcher.match(extractedTerms, this.dictName) : { confirmedPairs: [], newCandidates: [] };
+      confirmedPairs = matchResult.confirmedPairs;
+      log('INFO', '用語照合完了', { confirmed: confirmedPairs.length, candidates: matchResult.newCandidates.length });
     }
 
-    return result.translations[0] || text; // 失敗時は原文を返す
+    // 3. 翻訳実行
+    const result = this.callOpenAI([text], targetLang, confirmedPairs);
+
+    // 翻訳結果と新しい用語候補を返す
+    return {
+      translatedText: result.translations[0] || text, // 失敗時は原文を返す
+      newTermCandidates: result.usedTermPairs || []
+    };
   }
 
   /**
    * OpenAI APIを呼び出して翻訳
-   * @param {Array} texts - 翻訳するテキストの配列（現在は要素1つのみ）
+   * @param {Array<string>} texts - 翻訳するテキストの配列
    * @param {string} targetLang - 翻訳先言語
-   * @param {Array} dictTerms - 辞書用語
-   * @return {Object} 翻訳結果 {translations: ["..."], newTerms: [...]}
+   * @param {Array<Object>} confirmedPairs - 適用が確定した辞書データ
+   * @return {Object} 翻訳結果 {translations: ["..."], usedTermPairs: [...]}
    */
-  callOpenAI(texts, targetLang, dictTerms) {
-    const systemPrompt = `You will function as a high-precision translation API that receives JSON and returns JSON.
-Translate each text object within the 'textsToTranslate' array from the user-provided JSON object into the specified language: ${CONFIG.SUPPORTED_LANGUAGES[targetLang]}.
+  callOpenAI(texts, targetLang, confirmedPairs) {
+    const systemPrompt = `You are a high-precision, AI-powered translation engine that strictly follows JSON-based input and output formats.
 
-# Instructions
-1.  Translate every element in the input JSON's 'textsToTranslate' array.
-2.  The root of the output JSON must have a key named 'translations'. Its value must be an array of translation result objects.
-3.  [IMPORTANT] The output key name is 'translations'. Do not confuse it with the input key 'textsToTranslate'.
-4.  The number of elements in the 'translations' array must be EXACTLY the same as the number of elements in the input 'textsToTranslate' array.
-5.  Each translation result object MUST include the following three keys: the original 'id', the original 'text' copied into 'sourceText', and the translation result in 'translatedText'.
-6.  If you find any new pairs of technical terms during the translation process, add them to the 'newTerms' array.`;
+# Primary Goal
+Translate texts from a source language to a target language, meticulously applying a provided dictionary and identifying new term pairs.
+
+# Input JSON Structure
+{
+  "dictionary": [
+    { "source": "source_term_1", "target": "target_term_1" },
+    ...
+  ],
+  "textsToTranslate": [
+    { "id": 0, "text": "The text to be translated." },
+    ...
+  ]
+}
+
+# Output JSON Structure
+{
+  "translations": [
+    {
+      "id": 0,
+      "sourceText": "The original text.",
+      "translatedText": "The translated text."
+    },
+    ...
+  ],
+  "usedTermPairs": [
+    { "source": "original_term", "target": "translated_term" },
+    ...
+  ]
+}
+
+# Core Instructions
+1.  **Translate**: Translate every object in the \`textsToTranslate\` array into ${CONFIG.SUPPORTED_LANGUAGES[targetLang]}.
+2.  **Mandatory Dictionary Application**: You MUST use the provided \`dictionary\`. If a \`source\` term from the dictionary appears in the text, its corresponding \`target\` term MUST be used in the translation.
+3.  **Output \`translations\` Array**:
+    *   The \`translations\` array in the output MUST have the exact same number of elements as the input \`textsToTranslate\` array.
+    *   Each object in the array must contain \`id\`, \`sourceText\` (copy of original), and \`translatedText\`.
+4.  **Output \`usedTermPairs\` Array**:
+    *   This array must contain all term pairs that were actually used or identified during translation.
+    *   This includes:
+        *   Pairs applied directly from the provided \`dictionary\`.
+        *   New technical terms, proper nouns, or domain-specific phrases you identified and translated.
+    *   Each object MUST have \`source\` and \`target\` keys.
+    *   Do NOT include generic words. Focus on terms that are important for maintaining consistency.
+5.  **Strict JSON Format**: The final output must be a single, valid JSON object matching the specified structure. Do not add any text outside the JSON structure.`;
 
     const textsToTranslate = texts.map((text, index) => ({ id: index, text: text }));
     const inputJson = {
-      dictionary: dictTerms.map(term => ({ source: term.source, target: term.target })),
+      dictionary: confirmedPairs.map(term => ({ source: term.source, target: term.target })),
       textsToTranslate: textsToTranslate
     };
 
@@ -76,7 +129,7 @@ Translate each text object within the 'textsToTranslate' array from the user-pro
         { role: 'user', content: userPrompt }
       ],
       temperature: 0.1,
-      max_tokens: 16384, // トークン上限を引き上げ
+      max_tokens: 16384,
       response_format: { type: "json_object" }
     };
 
@@ -129,14 +182,14 @@ Translate each text object within the 'textsToTranslate' array from the user-pro
 
       return {
         translations: orderedTranslations,
-        newTerms: content.newTerms || []
+        usedTermPairs: content.usedTermPairs || []
       };
 
     } catch (error) {
       log('ERROR', 'OpenAI API call failed', error);
       return {
         translations: texts,
-        newTerms: []
+        usedTermPairs: []
       };
     }
   }

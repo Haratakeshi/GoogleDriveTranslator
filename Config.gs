@@ -15,8 +15,18 @@ const CONFIG = {
   get OPENAI_PROJECT_ID() {
     return PropertiesService.getScriptProperties().getProperty('OPENAI_PROJECT_ID');
   },
-  OPENAI_MODEL: 'gpt-4o-mini', // モデル名を修正
+  OPENAI_MODEL: 'gpt-4.1-mini',
   OPENAI_API_URL: 'https://api.openai.com/v1/chat/completions',
+  
+  // 用語抽出設定
+  TERM_EXTRACTION_MODEL: 'gpt-4o-mini-2024-07-18',
+  TERM_EXTRACTION_MAX_TOKENS: 2000,
+  TERM_EXTRACTION_TEMPERATURE: 0.1,
+  TERM_BATCH_SIZE: 5000,
+  TERM_CACHE_DURATION: 3600,
+  
+  // 品質管理設定
+  QUALITY_GATE_THRESHOLD: 0.7,
   
   // スプレッドシートID（初回実行時に自動作成）
   get HISTORY_SHEET_ID() {
@@ -66,6 +76,17 @@ const CONFIG = {
     'vi': 'ベトナム語'
   },
   
+  // サポートされる専門分野
+  SUPPORTED_DOMAINS: {
+    '一般': '一般的な文書',
+    'IT': 'IT・技術分野',
+    '医療': '医療・医学分野',
+    '法律': '法律・法務分野',
+    'ビジネス': 'ビジネス・経営分野',
+    '学術': '学術・研究分野',
+    '金融': '金融・投資分野'
+  },
+  
   // ファイルタイプ設定
   SUPPORTED_MIME_TYPES: {
     'application/vnd.google-apps.spreadsheet': {
@@ -90,7 +111,11 @@ const CONFIG = {
     UNSUPPORTED_FILE: 'サポートされていないファイル形式です',
     API_ERROR: 'APIエラーが発生しました',
     TRANSLATION_FAILED: '翻訳に失敗しました',
-    NETWORK_ERROR: 'ネットワークエラーが発生しました'
+    NETWORK_ERROR: 'ネットワークエラーが発生しました',
+    TERM_EXTRACTION_FAILED: '用語抽出に失敗しました',
+    INVALID_DOMAIN: 'サポートされていない専門分野です',
+    QUALITY_EVALUATION_FAILED: '品質評価に失敗しました',
+    TERM_MATCHING_FAILED: '用語照合に失敗しました'
   },
   
   // デフォルト設定

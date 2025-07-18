@@ -61,6 +61,30 @@ class FileHandler {
   }
 
   /**
+   * ファイルから全てのテキストコンテンツを抽出する
+   * @param {Object} fileInfo - ファイル情報
+   * @return {string} 抽出された全テキスト
+   */
+  extractAllText(fileInfo) {
+    log('INFO', `全テキスト抽出開始: ${fileInfo.name}`);
+    try {
+      switch (fileInfo.type) {
+        case 'spreadsheet':
+          return this._extractTextFromSpreadsheet(fileInfo.id);
+        case 'document':
+          return this._extractTextFromDocument(fileInfo.id);
+        case 'presentation':
+          return this._extractTextFromPresentation(fileInfo.id);
+        default:
+          throw new Error('サポートされていないファイルタイプです');
+      }
+    } catch (e) {
+      log('ERROR', `テキスト抽出に失敗: ${fileInfo.name}`, { error: e.message });
+      throw new Error(`ファイルからのテキスト抽出に失敗しました: ${e.message}`);
+    }
+  }
+
+  /**
    * 翻訳先となる空のファイルを作成する
    * @param {Object} originalFileInfo - 元のファイル情報
    * @param {string} targetLang - 翻訳先言語
@@ -148,5 +172,74 @@ class FileHandler {
     // TODO: Implement presentation job creation
     log('WARN', 'Presentation job creation is not yet implemented.');
     return [];
+  }
+
+  // --- Private Text Extraction Methods ---
+
+  /**
+   * スプレッドシートからテキストを抽出する
+   * @private
+   * @param {string} fileId - ファイルID
+   * @return {string} 抽出されたテキスト
+   */
+  _extractTextFromSpreadsheet(fileId) {
+    const spreadsheet = SpreadsheetApp.openById(fileId);
+    const sheets = spreadsheet.getSheets();
+    const texts = [];
+
+    sheets.forEach(sheet => {
+      const range = sheet.getDataRange();
+      const values = range.getValues();
+      const formulas = range.getFormulas();
+
+      for (let row = 0; row < values.length; row++) {
+        for (let col = 0; col < values[row].length; col++) {
+          const value = values[row][col];
+          // テキストで、かつ数式でないセルのみを対象
+          if (value && typeof value === 'string' && value.trim() !== '' && !formulas[row][col]) {
+            texts.push(value);
+          }
+        }
+      }
+    });
+    return texts.join('\n');
+  }
+
+  /**
+   * ドキュメントからテキストを抽出する
+   * @private
+   * @param {string} fileId - ファイルID
+   * @return {string} 抽出されたテキスト
+   */
+  _extractTextFromDocument(fileId) {
+    const doc = DocumentApp.openById(fileId);
+    return doc.getBody().getText();
+  }
+
+  /**
+   * プレゼンテーションからテキストを抽出する
+   * @private
+   * @param {string} fileId - ファイルID
+   * @return {string} 抽出されたテキスト
+   */
+  _extractTextFromPresentation(fileId) {
+    const presentation = SlidesApp.openById(fileId);
+    const slides = presentation.getSlides();
+    const texts = [];
+
+    slides.forEach(slide => {
+      // スライド上の全シェイプからテキストを抽出
+      slide.getShapes().forEach(shape => {
+        if (shape.hasText()) {
+          texts.push(shape.getText().asString());
+        }
+      });
+      // スピーカーノートからテキストを抽出
+      const notesShape = slide.getNotesPage().getSpeakerNotesShape();
+      if (notesShape && notesShape.hasText()) {
+        texts.push(notesShape.getText().asString());
+      }
+    });
+    return texts.join('\n');
   }
 }
