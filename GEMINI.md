@@ -25,26 +25,50 @@ Google Drive 翻訳ツール
 - **`History.gs`**: 履歴管理クラス。翻訳結果をスプレッドシートに記録し、統計情報を生成します。
 - **`UI.html`**: フロントエンド。HTML, CSS, JavaScriptで構成されたシングルページアプリケーションです。`google.script.run`を介してGASのバックエンド関数を呼び出します。
 
-## 主なワークフロー：ファイル翻訳
+## 主なワークフロー：Queue方式ファイル翻訳
+
+### フェーズ1: 翻訳ジョブのセットアップ
 
 1.  **UI**: ユーザーがファイルURLを入力し、「翻訳を開始」ボタンをクリックします。
-2.  **`UI.html`**: `google.script.run`を使い、`translateFile`関数（`Code.gs`内）を呼び出します。
-3.  **`Code.gs`**: `translateFile`関数がリクエストを受け取ります。
-4.  **`FileHandler`**: `getFileInfo`メソッドでファイルの内容とメタデータを抽出します。
-5.  **`Translator`**: `translateFile`メソッドが呼び出されます。
-    - ファイルタイプに応じて、テキストをバッチ処理用の配列にまとめます。
-    - `translateBatch`メソッドで、テキストをAPIの文字数制限に合わせてチャンクに分割します。
-    - `translateChunk`メソッドで、各チャンクを翻訳します。
-        - **`Dictionary`**: `getBatchTerms`で辞書データを取得します。
-        - **`callOpenAI`**: 辞書データを含むプロンプトを生成し、OpenAI APIにリクエストを送信します。
-6.  **`FileHandler`**: `createTranslatedFile`メソッドで、翻訳されたコンテンツから新しいGoogle Driveファイルを作成します。
-7.  **`History`**: `record`メソッドで、翻訳ジョブの結果をスプレッドシートに記録します。
-8.  **`Code.gs`**: 処理結果（成功/失敗、新しいファイルURLなど）を`UI.html`に返します。
-9.  **UI**: 結果をユーザーに表示します。
+2.  **`UI.html`**: `google.script.run`を使い、`setupTranslationQueue`関数（`Code.gs`内）を呼び出します。
+3.  **`Code.gs`**: `setupTranslationQueue`関数がリクエストを受け取ります。
+4.  **`FileHandler`**:
+    - `getFileInfo`メソッドでファイルの基本情報を取得します。
+    - `createEmptyTranslatedFile`メソッドで翻訳先の空ファイルを事前作成します。
+    - `createTranslationJobs`メソッドでファイルを個別のジョブ（セル単位）に分割します。
+5.  **`Code.gs`**:
+    - タスクIDを生成し、ジョブ情報をキャッシュに保存します。
+    - セットアップ結果（タスクID、総ジョブ数、翻訳先ファイルURL）を`UI.html`に返します。
+
+### フェーズ2: 非同期ジョブ処理
+
+6.  **`UI.html`**: セットアップ完了後、`processNextInQueue`関数を繰り返し呼び出します。
+7.  **`Code.gs`**: `processNextInQueue`関数が1つのジョブを処理します。
+    - キャッシュからタスク情報を取得し、次のジョブを取り出します。
+8.  **`Translator`**: `translateText`メソッドで個別のテキストを翻訳します。
+    - **`Dictionary`**: `getBatchTerms`で辞書データを取得します。
+    - **`callOpenAI`**: 辞書データを含むプロンプトを生成し、OpenAI APIにリクエストを送信します。
+9.  **`FileHandler`**: `writeTranslatedJob`メソッドで翻訳結果を即座にファイルに書き込みます。
+10. **`Code.gs`**: 処理状況（processing/complete/error）と進捗情報を`UI.html`に返します。
+11. **`UI.html`**:
+    - 進捗バーを更新し、処理状況を表示します。
+    - `processing`の場合は次のジョブ処理を継続します。
+    - `complete`の場合は完了メッセージと結果ファイルのリンクを表示します。
+
+### フェーズ3: 完了処理
+
+12. **`History`**: 全ジョブ完了時に翻訳結果をスプレッドシートに記録します。
+13. **`UI.html`**: 最終結果をユーザーに表示し、履歴を更新します。
 
 ## 注意点
 
 - **機密情報**: APIキーなどの機密情報は、GASの「スクリプトプロパティ」で管理されています。コード内には直接記述されていません。
 - **外部API**: OpenAI API (`https://api.openai.com/v1/chat/completions`) を利用しています。
 - **データストア**: 翻訳履歴と辞書データは、ユーザーのGoogle Drive内に自動生成されるGoogleスプレッドシートに保存されます。
-- **GASの制約**: 実行時間制限（最大6分）やAPIコール数のクォータなど、Google Apps Scriptの制約下で動作するように設計されています。
+- **Queue方式の技術的制約**:
+  - **キャッシュ依存**: タスク情報は`CacheService.getUserCache()`に6時間保存されます。キャッシュが期限切れになると処理が中断されます。
+  - **ジョブ単位処理**: 現在はスプレッドシートのセル単位でのみジョブ分割が実装されています（ドキュメント・プレゼンテーションは未実装）。
+  - **非同期処理**: フロントエンドが定期的にバックエンドを呼び出す仕組みのため、ブラウザを閉じると処理が中断されます。
+- **GASの制約対応**:
+  - **実行時間制限回避**: Queue方式により、6分の実行時間制限を回避しています。
+  - **メモリ効率**: 一度に1つのジョブのみを処理することで、メモリ使用量を最小化しています。
