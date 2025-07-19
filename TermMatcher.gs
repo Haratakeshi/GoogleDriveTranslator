@@ -57,65 +57,45 @@ class TermMatcher {
       return { confirmedPairs: [], newCandidates };
     }
 
-    let remainingTerms = [...uniqueExtractedTerms];
+    // シンプルな完全一致のみの実装
+    const confirmedPairs = [];
+    const newCandidates = [];
     
-    // 1. 完全一致
-    const exactMatchResult = this._exactMatch(remainingTerms, dictionaryTerms);
-    const confirmedPairs = exactMatchResult.matched.map(m => ({
-      source: m.extractedTerm,
-      target: m.dictTerm.target,
-      matchType: 'exact',
-      details: '辞書と完全に一致しました。',
-      dictionaryTerm: m.dictTerm
-    }));
-    remainingTerms = exactMatchResult.unmatched;
-    log('INFO', `Exact match found: ${confirmedPairs.length}`);
-
-    // 2. 正規化一致
-    const normalizedMatchResult = this._normalizedMatch(remainingTerms, dictionaryTerms);
-    normalizedMatchResult.matched.forEach(m => {
-      confirmedPairs.push({
-        source: m.extractedTerm,
-        target: m.dictTerm.target,
-        matchType: 'normalized',
-        details: '表記揺れを正規化した結果、辞書と一致しました。',
-        dictionaryTerm: m.dictTerm
-      });
-    });
-    remainingTerms = normalizedMatchResult.unmatched;
-    log('INFO', `Normalized match found: ${normalizedMatchResult.matched.length}`);
-
-    // 3. 部分一致 & あいまい一致
-    const partialFuzzyResult = this._partialAndFuzzyMatch(remainingTerms, dictionaryTerms);
-    partialFuzzyResult.partial.forEach(m => {
-      confirmedPairs.push({
-        source: m.extractedTerm,
-        target: m.dictTerm.target,
-        matchType: 'partial',
-        details: '辞書用語の一部として一致しました。',
-        dictionaryTerm: m.dictTerm
-      });
+    // 辞書をMapに変換（O(1)検索のため）
+    const dictMap = new Map();
+    dictionaryTerms.forEach(dictTerm => {
+      if (dictTerm.source && dictTerm.target) {
+        dictMap.set(dictTerm.source, dictTerm);
+      }
     });
     
-    const newCandidates = partialFuzzyResult.fuzzy.map(m => ({
-      source: m.extractedTerm,
-      reason: 'fuzzy_match',
-      details: `類似の用語が見つかりました (類似度: ${m.similarity.toFixed(2)})。`,
-      similarTerm: m.dictTerm
-    }));
-    remainingTerms = partialFuzzyResult.unmatched;
-    log('INFO', `Partial match found: ${partialFuzzyResult.partial.length}`);
-    log('INFO', `Fuzzy match (new candidates) found: ${partialFuzzyResult.fuzzy.length}`);
-
-    // 4. 最終的に残ったものを新規用語として追加
-    remainingTerms.forEach(term => {
-      newCandidates.push({
-        source: term,
-        reason: 'new_term',
-        details: '辞書に一致する用語が見つかりませんでした。'
-      });
+    log('INFO', `Dictionary loaded: ${dictMap.size} terms`);
+    log('INFO', `Dictionary sample: ${Array.from(dictMap.keys()).slice(0, 5).join(', ')}`);
+    log('INFO', `Extracted terms: ${uniqueExtractedTerms.slice(0, 5).join(', ')}`);
+    
+    // 完全一致チェック
+    uniqueExtractedTerms.forEach(extractedTerm => {
+      if (dictMap.has(extractedTerm)) {
+        const dictTerm = dictMap.get(extractedTerm);
+        confirmedPairs.push({
+          source: extractedTerm,
+          target: dictTerm.target,
+          matchType: 'exact',
+          details: '辞書と完全に一致しました。',
+          dictionaryTerm: dictTerm
+        });
+        log('INFO', `Exact match: "${extractedTerm}" -> "${dictTerm.target}"`);
+      } else {
+        newCandidates.push({
+          source: extractedTerm,
+          reason: 'new_term',
+          details: '辞書に存在しない新規用語です。'
+        });
+        log('INFO', `New term: "${extractedTerm}"`);
+      }
     });
-    log('INFO', `Completely new terms found: ${remainingTerms.length}`);
+    
+    log('INFO', `New terms found: ${newCandidates.length}`);
 
     log('INFO', 'Term matching finished.', {
       confirmedPairsCount: confirmedPairs.length,

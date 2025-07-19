@@ -200,6 +200,11 @@ class Dictionary {
         rowIndex: index + 2
       })).filter(term => term.source && term.target);
       
+      log('INFO', `辞書「${dictName}」から${allTerms.length}個の用語を読み込みました`);
+      if (allTerms.length > 0) {
+        log('INFO', `辞書サンプル: ${allTerms.slice(0, 3).map(t => `"${t.source}" -> "${t.target}"`).join(', ')}`);
+      }
+      
       this.cache.set(cacheKey, allTerms);
     }
     return allTerms;
@@ -303,90 +308,38 @@ class Dictionary {
         return { success: false, message: '辞書が見つかりません' };
       }
       
-      // 既存の用語を取得
+      // シンプルな重複チェック（完全一致のみ）
       const lastRow = sheet.getLastRow();
       const existingTerms = new Set();
-      const existingNormalizedSources = new Map(); // 正規化された原語をマップで管理
       
       if (lastRow > 1) {
         const existingData = sheet.getRange(2, 1, lastRow - 1, 2).getValues();
         existingData.forEach(row => {
           if (row[0] && row[1]) {
-            // 完全一致チェック用
             existingTerms.add(`${row[0]}_${row[1]}`);
-            
-            // 正規化された原語でのチェック用
-            const normalizedSource = Utils.normalizeTerm(row[0]);
-            if (normalizedSource) {
-              if (!existingNormalizedSources.has(normalizedSource)) {
-                existingNormalizedSources.set(normalizedSource, []);
-              }
-              existingNormalizedSources.get(normalizedSource).push({
-                original: row[0],
-                target: row[1]
-              });
-            }
           }
         });
       }
       
-      // 新規用語のみを抽出（重複チェック：元データ保持、マッチングのみ正規化）
-      const newTerms = [];
-      const conflictTerms = [];
+      log('INFO', `既存用語数: ${existingTerms.size}`);
       
-      terms.forEach(term => {
-        const exactKey = `${term.source}_${term.target}`;
-        
-        // 1. 完全一致チェック（元データそのまま）
-        if (existingTerms.has(exactKey)) {
-          log('INFO', `完全一致により除外: "${term.source}" -> "${term.target}"`);
-          return; // 完全に同じ用語ペアは除外
+      // 完全一致のみで重複チェック
+      const newTerms = terms.filter(term => {
+        const key = `${term.source}_${term.target}`;
+        const isDuplicate = existingTerms.has(key);
+        if (isDuplicate) {
+          log('INFO', `重複により除外: "${term.source}" -> "${term.target}"`);
         }
-        
-        // 2. 重要な競合チェック（正規化は比較のみ、データは変更しない）
-        const normalizedSource = Utils.normalizeTerm(term.source);
-        if (normalizedSource && existingNormalizedSources.has(normalizedSource)) {
-          const conflicts = existingNormalizedSources.get(normalizedSource);
-          const normalizedTarget = Utils.normalizeTerm(term.target);
-          
-          // 重大な競合：同一意味の原語で明らかに異なる翻訳
-          const hasSignificantConflict = conflicts.some(existing => {
-            const existingNormalizedTarget = Utils.normalizeTerm(existing.target);
-            // 正規化後も明らかに異なる場合のみ競合とする
-            const targetDiff = Math.abs(normalizedTarget.length - existingNormalizedTarget.length);
-            const isSimilar = Utils.calculateSimilarityScore(normalizedTarget, existingNormalizedTarget) > 0.8;
-            
-            return !isSimilar && targetDiff > 2; // 明らかに異なる翻訳のみ競合
-          });
-          
-          if (hasSignificantConflict) {
-            conflictTerms.push({
-              newTerm: term,
-              conflicts: conflicts
-            });
-            log('WARN', `重大な競合を検出: "${term.source}" -> "${term.target}" (既存: ${conflicts.map(c => `"${c.original}" -> "${c.target}"`).join(', ')})`);
-            return; // 重大な競合のみ除外
-          }
-          
-          // 軽微な表記揺れは新規として登録を許可（LLMの判断に委ねる）
-          log('INFO', `表記揺れとして許可: "${term.source}" -> "${term.target}"`);
-        }
-        
-        // 3. 新規用語として追加（元データそのまま保持）
-        newTerms.push(term);
+        return !isDuplicate;
       });
       
-      // 競合情報をログに記録
-      if (conflictTerms.length > 0) {
-        log('INFO', `${conflictTerms.length}個の競合用語を除外しました`);
-      }
+      log('INFO', `新規用語: ${terms.length}個中${newTerms.length}個を追加対象とします`);
       
       if (newTerms.length === 0) {
         return { 
           success: true, 
           added: 0,
-          conflicts: conflictTerms.length,
-          message: conflictTerms.length > 0 ? `${conflictTerms.length}個の競合用語を除外しました` : '新規用語がありませんでした'
+          message: '新規用語がありませんでした'
         };
       }
       
@@ -412,8 +365,7 @@ class Dictionary {
       return {
         success: true,
         added: newTerms.length,
-        conflicts: conflictTerms.length,
-        message: `${newTerms.length}個の新規用語を追加しました` + (conflictTerms.length > 0 ? `（${conflictTerms.length}個の競合用語を除外）` : '')
+        message: `${newTerms.length}個の新規用語を追加しました`
       };
       
     } catch (error) {
