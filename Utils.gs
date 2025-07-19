@@ -37,16 +37,23 @@ class Utils {
       return '';
     }
     
-    // TODO: 実装予定
-    // 1. 大文字小文字の統一
-    // 2. 記号の除去
-    // 3. 空白の正規化
-    // 4. 全角・半角の統一
-    
-    return term.toLowerCase()
-               .trim()
-               .replace(/[^\w\s\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/g, '')  // 日本語文字以外の記号を除去
-               .replace(/\s+/g, ' ');
+    return term
+      // 1. 基本的なトリミング
+      .trim()
+      // 2. 全角英数字を半角に統一
+      .replace(/[Ａ-Ｚａ-ｚ０-９]/g, function(s) {
+        return String.fromCharCode(s.charCodeAt(0) - 0xFEE0);
+      })
+      // 3. 長音記号の統一（ー、−、‐、―を統一）
+      .replace(/[ー−‐―]/g, 'ー')
+      // 4. 大文字小文字の統一
+      .toLowerCase()
+      // 5. 記号の除去（日本語文字、アルファベット、数字、基本的な記号は保持）
+      .replace(/[^\w\s\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF\uFF10-\uFF19\uFF21-\uFF3A\uFF41-\uFF5Aー]/g, '')
+      // 6. 空白の正規化
+      .replace(/\s+/g, ' ')
+      // 7. 最終トリミング
+      .trim();
   }
   
   /**

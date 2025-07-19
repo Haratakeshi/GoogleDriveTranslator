@@ -63,7 +63,25 @@ class DictionaryQualityManager {
   _evaluateConfidenceScore(term) {
     // 類似度スコア、信頼度スコア、用語の出現頻度などを考慮
     // 現状は、termオブジェクトに存在する最も代表的なスコアを返す
-    return term.similarity || term.confidence || 0.0;
+    let score = term.similarity || term.confidence || 0.0;
+    
+    // 翻訳時に発見された新規用語の場合、デフォルトの品質スコアを設定
+    if (score === 0.0 && term.source && term.target) {
+      // 基本的な品質チェック
+      const sourceLength = term.source.length;
+      const targetLength = term.target.length;
+      
+      // 用語の長さが適切かチェック
+      if (sourceLength >= 2 && targetLength >= 1 && sourceLength <= 50 && targetLength <= 50) {
+        // 翻訳時に発見された用語は中程度の信頼度を設定
+        score = 0.75; // 自動承認される値
+      } else {
+        // 長さが不適切な場合は低い信頼度
+        score = 0.4; // 保留される値
+      }
+    }
+    
+    return score;
   }
   
   /**
@@ -110,7 +128,8 @@ class DictionaryQualityManager {
 
    const results = {
      success: true,
-     processed: termPairs.length,
+     totalTerms: termPairs.length,
+     processed: 0, // 実際に処理された新規用語数
      approved: 0,
      pending: 0,
      rejected: 0,
@@ -119,7 +138,27 @@ class DictionaryQualityManager {
      rejectedTerms: []
    };
 
-   for (const termPair of termPairs) {
+   // 既存辞書の用語を取得して新規用語のみをフィルタリング
+   let newTermPairs = [];
+   try {
+     const existingTerms = dictionary._getOrCacheAllTerms(dictName);
+     const existingPairs = new Set(existingTerms.map(term => `${term.source}_${term.target}`));
+     
+     newTermPairs = termPairs.filter(termPair => {
+       const key = `${termPair.source}_${termPair.target}`;
+       return !existingPairs.has(key);
+     });
+     
+     log('INFO', `品質管理: 全用語数=${termPairs.length}, 新規用語数=${newTermPairs.length}`);
+   } catch (e) {
+     log('WARN', '既存辞書の取得に失敗しました。全用語を新規として処理します。', e);
+     newTermPairs = termPairs;
+   }
+
+   // 処理対象の新規用語数を更新
+   results.processed = newTermPairs.length;
+
+   for (const termPair of newTermPairs) {
      try {
        // 1. 品質評価ロジック
        const qualityScore = this._evaluateConfidenceScore(termPair);
@@ -129,6 +168,8 @@ class DictionaryQualityManager {
        // 2. ステータス分類ロジック
        const decision = this._makeQualityDecision(qualityScore);
        termPair.decision = decision;
+       
+       log('INFO', `用語品質評価: "${termPair.source}" -> "${termPair.target}" (スコア: ${qualityScore}, 判定: ${decision})`);
 
        switch (decision) {
          case 'approved':

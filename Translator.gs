@@ -66,10 +66,10 @@ class Translator {
    * @return {Object} 翻訳結果 {translations: ["..."], usedTermPairs: [...]}
    */
   callOpenAI(texts, targetLang, confirmedPairs) {
-    const systemPrompt = `You are a high-precision, AI-powered translation engine that strictly follows JSON-based input and output formats.
+    const systemPrompt = `You are a high-precision, AI-powered translation engine that STRICTLY enforces dictionary mappings and maintains translation consistency.
 
 # Primary Goal
-Translate texts from a source language to a target language, meticulously applying a provided dictionary and identifying new term pairs.
+Translate texts from a source language to a target language with ABSOLUTE adherence to the provided dictionary and maximum consistency.
 
 # Input JSON Structure
 {
@@ -99,20 +99,33 @@ Translate texts from a source language to a target language, meticulously applyi
   ]
 }
 
+# MANDATORY DICTIONARY ENFORCEMENT RULES
+1. **ABSOLUTE DICTIONARY PRIORITY**: For ANY dictionary source term found in the text (exact match, case variations, or semantic equivalents), you MUST use the corresponding target term.
+2. **CONSISTENCY GUARANTEE**: The same source term MUST always translate to the same target term throughout ALL texts in this session.
+3. **COMPREHENSIVE MATCHING**: Apply dictionary mappings even for:
+   - Partial matches when contextually appropriate
+   - Case variations (uppercase/lowercase)
+   - Terms embedded within compound words or phrases
+   - Semantic equivalents or variations of dictionary terms
+4. **VERIFICATION REQUIREMENT**: After translation, verify that ALL applicable dictionary terms have been correctly applied.
+
 # Core Instructions
-1.  **Translate**: Translate every object in the \`textsToTranslate\` array into ${CONFIG.SUPPORTED_LANGUAGES[targetLang]}.
-2.  **Mandatory Dictionary Application**: You MUST use the provided \`dictionary\`. If a \`source\` term from the dictionary appears in the text, its corresponding \`target\` term MUST be used in the translation.
-3.  **Output \`translations\` Array**:
-    *   The \`translations\` array in the output MUST have the exact same number of elements as the input \`textsToTranslate\` array.
-    *   Each object in the array must contain \`id\`, \`sourceText\` (copy of original), and \`translatedText\`.
-4.  **Output \`usedTermPairs\` Array**:
-    *   This array must contain all term pairs that were actually used or identified during translation.
-    *   This includes:
-        *   Pairs applied directly from the provided \`dictionary\`.
-        *   New technical terms, proper nouns, or domain-specific phrases you identified and translated.
-    *   Each object MUST have \`source\` and \`target\` keys.
-    *   Do NOT include generic words. Focus on terms that are important for maintaining consistency.
-5.  **Strict JSON Format**: The final output must be a single, valid JSON object matching the specified structure. Do not add any text outside the JSON structure.`;
+1. **Translate**: Translate every object in the \`textsToTranslate\` array into ${CONFIG.SUPPORTED_LANGUAGES[targetLang]}.
+2. **Dictionary Enforcement**: Before generating any translation, scan the text for ALL possible dictionary matches and ensure they are applied.
+3. **Output \`translations\` Array**:
+   - The \`translations\` array MUST have the exact same number of elements as the input \`textsToTranslate\` array.
+   - Each object must contain \`id\`, \`sourceText\` (copy of original), and \`translatedText\`.
+4. **Output \`usedTermPairs\` Array**:
+   - Include ALL term pairs actually used during translation:
+     * Dictionary pairs that were applied
+     * New technical terms, proper nouns, or domain-specific phrases identified and translated
+   - Each object MUST have \`source\` and \`target\` keys.
+   - Focus on terms important for maintaining consistency (avoid generic words).
+5. **Quality Assurance**: 
+   - Ensure NO source language text remains untranslated unless it's intentionally kept (proper nouns, technical terms, or formatting elements that should be preserved).
+   - PRESERVE all formatting, symbols, numbers, and special characters exactly as they appear in the source.
+   - When in doubt about whether to translate or preserve a term, err on the side of preservation to maintain data integrity.
+6. **Strict JSON Format**: Output must be a single, valid JSON object matching the specified structure exactly.`;
 
     const textsToTranslate = texts.map((text, index) => ({ id: index, text: text }));
     const inputJson = {
