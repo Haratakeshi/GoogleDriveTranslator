@@ -51,6 +51,11 @@ class Translator {
     // 3. 翻訳実行
     const result = this.callOpenAI([text], targetLang, confirmedPairs);
 
+    // 4. 新規用語の自動登録
+    if (result.usedTermPairs && result.usedTermPairs.length > 0 && this.dictName) {
+      this.registerNewTerms(result.usedTermPairs);
+    }
+
     // 翻訳結果と新しい用語候補を返す
     return {
       translatedText: result.translations[0] || text, // 失敗時は原文を返す
@@ -66,10 +71,10 @@ class Translator {
    * @return {Object} 翻訳結果 {translations: ["..."], usedTermPairs: [...]}
    */
   callOpenAI(texts, targetLang, confirmedPairs) {
-    const systemPrompt = `You are a high-precision, AI-powered translation engine that STRICTLY enforces dictionary mappings and maintains translation consistency.
+    const systemPrompt = `You are a high-precision, AI-powered translation engine that STRICTLY enforces dictionary mappings and generates new term pairs for dictionary learning.
 
 # Primary Goal
-Translate texts from a source language to a target language with ABSOLUTE adherence to the provided dictionary and maximum consistency.
+Translate texts from a source language to a target language with ABSOLUTE adherence to the provided dictionary and generate new term pairs for future translations.
 
 # Input JSON Structure
 {
@@ -100,31 +105,25 @@ Translate texts from a source language to a target language with ABSOLUTE adhere
 }
 
 # MANDATORY DICTIONARY ENFORCEMENT RULES
-1. **ABSOLUTE DICTIONARY PRIORITY**: For ANY dictionary source term found in the text (exact match, case variations, or semantic equivalents), you MUST use the corresponding target term.
-2. **CONSISTENCY GUARANTEE**: The same source term MUST always translate to the same target term throughout ALL texts in this session.
-3. **COMPREHENSIVE MATCHING**: Apply dictionary mappings even for:
-   - Partial matches when contextually appropriate
-   - Case variations (uppercase/lowercase)
-   - Terms embedded within compound words or phrases
-   - Semantic equivalents or variations of dictionary terms
-4. **VERIFICATION REQUIREMENT**: After translation, verify that ALL applicable dictionary terms have been correctly applied.
+1. **ABSOLUTE DICTIONARY PRIORITY**: For ANY dictionary source term found in the text, you MUST use the corresponding target term.
+2. **CONSISTENCY GUARANTEE**: The same source term MUST always translate to the same target term throughout ALL texts.
+3. **COMPREHENSIVE MATCHING**: Apply dictionary mappings for exact matches and case variations.
 
 # Core Instructions
 1. **Translate**: Translate every object in the \`textsToTranslate\` array into ${CONFIG.SUPPORTED_LANGUAGES[targetLang]}.
-2. **Dictionary Enforcement**: Before generating any translation, scan the text for ALL possible dictionary matches and ensure they are applied.
+2. **Dictionary Enforcement**: Apply all provided dictionary mappings where source terms appear in the text.
 3. **Output \`translations\` Array**:
    - The \`translations\` array MUST have the exact same number of elements as the input \`textsToTranslate\` array.
    - Each object must contain \`id\`, \`sourceText\` (copy of original), and \`translatedText\`.
-4. **Output \`usedTermPairs\` Array**:
-   - Include ALL term pairs actually used during translation:
-     * Dictionary pairs that were applied
-     * New technical terms, proper nouns, or domain-specific phrases identified and translated
-   - Each object MUST have \`source\` and \`target\` keys.
-   - Focus on terms important for maintaining consistency (avoid generic words).
+4. **CRITICAL: Output \`usedTermPairs\` Array**:
+   - **ALWAYS include new term pairs** that you create during translation
+   - Include important nouns, technical terms, proper nouns, and key phrases you translate
+   - Each object MUST have \`source\` (original term) and \`target\` (your translation) keys
+   - Focus on terms that would be useful for future translations
+   - Example: If you translate "プラットフォーム" to "平台", include {"source": "プラットフォーム", "target": "平台"}
+   - **DO NOT leave usedTermPairs empty** - always include meaningful term pairs you created
 5. **Quality Assurance**: 
-   - Ensure NO source language text remains untranslated unless it's intentionally kept (proper nouns, technical terms, or formatting elements that should be preserved).
-   - PRESERVE all formatting, symbols, numbers, and special characters exactly as they appear in the source.
-   - When in doubt about whether to translate or preserve a term, err on the side of preservation to maintain data integrity.
+   - Preserve all formatting, symbols, numbers, and special characters exactly as they appear in the source.
 6. **Strict JSON Format**: Output must be a single, valid JSON object matching the specified structure exactly.`;
 
     const textsToTranslate = texts.map((text, index) => ({ id: index, text: text }));
@@ -175,6 +174,10 @@ Translate texts from a source language to a target language with ABSOLUTE adhere
 
       const content = JSON.parse(result.choices[0].message.content);
 
+      // デバッグ用: 翻訳API生レスポンスと翻訳結果の詳細JSONログ出力
+      log('INFO', '翻訳API生レスポンス:', JSON.stringify(result, null, 2));
+      log('INFO', '翻訳結果Schema詳細:', JSON.stringify(content, null, 2));
+
       if (!content.translations || !Array.isArray(content.translations) || content.translations.length !== texts.length) {
         log('ERROR', 'API response validation failed', content);
         throw new Error('翻訳結果の形式または件数が不正です。');
@@ -193,10 +196,15 @@ Translate texts from a source language to a target language with ABSOLUTE adhere
         }
       }
 
-      return {
+      const finalResult = {
         translations: orderedTranslations,
         usedTermPairs: content.usedTermPairs || []
       };
+
+      // デバッグ用: 最終翻訳結果をJSON出力
+      log('INFO', '最終翻訳結果詳細:', JSON.stringify(finalResult, null, 2));
+
+      return finalResult;
 
     } catch (error) {
       log('ERROR', 'OpenAI API call failed', error);
@@ -204,6 +212,55 @@ Translate texts from a source language to a target language with ABSOLUTE adhere
         translations: texts,
         usedTermPairs: []
       };
+    }
+  }
+
+  /**
+   * 翻訳で使用された新規用語を辞書に自動登録する
+   * @param {Array<Object>} usedTermPairs - 翻訳で使用された用語ペア
+   */
+  registerNewTerms(usedTermPairs) {
+    if (!usedTermPairs || !Array.isArray(usedTermPairs) || usedTermPairs.length === 0) {
+      return;
+    }
+
+    try {
+      // 既存の辞書データを取得して重複チェック
+      const existingTerms = this.dictionary._getOrCacheAllTerms(this.dictName);
+      const existingKeys = new Set(existingTerms.map(term => `${term.source}_${term.target}`));
+
+      // 重複していない新規用語のみをフィルタリング
+      const newTerms = usedTermPairs.filter(pair => {
+        const key = `${pair.source}_${pair.target}`;
+        const isDuplicate = existingKeys.has(key);
+        if (isDuplicate) {
+          log('INFO', `重複により新規登録をスキップ: "${pair.source}" -> "${pair.target}"`);
+        }
+        return !isDuplicate;
+      });
+
+      if (newTerms.length === 0) {
+        log('INFO', '新規登録対象の用語がありませんでした');
+        return;
+      }
+
+      // 辞書に新規用語を追加
+      const addResult = this.dictionary.addTerms(this.dictName, newTerms);
+      
+      if (addResult.success) {
+        log('INFO', `${addResult.added}個の新規用語を辞書「${this.dictName}」に自動登録しました`);
+        
+        // 辞書キャッシュをクリアして次回翻訳で最新データを使用
+        this.dictionary.cache.delete(`${this.dictName}_terms_all_data`);
+        
+        // デバッグ用: 登録された用語をJSON出力
+        log('INFO', '登録された新規用語詳細:', JSON.stringify(newTerms, null, 2));
+      } else {
+        log('ERROR', '新規用語の自動登録に失敗しました', addResult.message);
+      }
+
+    } catch (error) {
+      log('ERROR', '新規用語自動登録処理でエラーが発生しました', error);
     }
   }
 }

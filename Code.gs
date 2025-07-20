@@ -64,48 +64,7 @@ function setupTranslationQueue(fileUrl, targetLang, dictName) {
     const cache = CacheService.getUserCache();
     log('INFO', `タスクID生成: ${taskId}`);
 
-    // --- 事前用語抽出と辞書照合処理 ---
-    try {
-      log('INFO', `[${taskId}] 事前用語抽出処理を開始`);
-
-      // 1. ファイル全体のテキストを一括で抽出
-      const allText = fileHandler.extractAllText(fileInfo);
-      log('INFO', `[${taskId}] テキスト抽出完了。文字数: ${allText ? allText.length : 0}`);
-
-      if (allText && allText.trim().length > 0) {
-        // 2. 用語を抽出
-        const termExtractor = new TermExtractor();
-        const extractionResult = termExtractor.extract(allText, 'auto', targetLang, '一般', {});
-        const extractedTerms = extractionResult.extracted_terms || [];
-        log('INFO', `[${taskId}] 用語抽出完了。抽出数: ${extractedTerms.length}`);
-
-        if (extractedTerms.length > 0) {
-          // 3. 用語を辞書と照合
-          const termMatcher = new TermMatcher();
-          const sourceTerms = extractedTerms.map(t => t.term);
-          const matchResult = termMatcher.match(sourceTerms, dictName);
-          const confirmedPairs = matchResult.confirmedPairs || [];
-          log('INFO', `[${taskId}] 用語照合完了。確定ペア数: ${confirmedPairs.length}`);
-
-          // 4. 確定した辞書データをキャッシュに保存
-          if (confirmedPairs.length > 0) {
-            const dictionaryCacheKey = `${taskId}_dictionary`;
-            cache.put(dictionaryCacheKey, JSON.stringify(confirmedPairs), 21600); // 6時間有効
-            log('INFO', `[${taskId}] 確定辞書をキャッシュに保存しました。キー: ${dictionaryCacheKey}`);
-          } else {
-            log('INFO', `[${taskId}] 確定ペアがなかったため、辞書キャッシュは作成しませんでした。`);
-          }
-        } else {
-          log('INFO', `[${taskId}] 抽出された用語がなかったため、照合処理をスキップしました。`);
-        }
-      } else {
-        log('INFO', `[${taskId}] 翻訳対象のテキストが存在しないため、用語抽出をスキップしました。`);
-      }
-    } catch (e) {
-      // 用語抽出・照合処理でエラーが発生しても、翻訳処理は続行する
-      log('ERROR', `[${taskId}] 事前用語抽出処理でエラーが発生しました。翻訳処理は続行されます。`, { message: e.message, stack: e.stack });
-    }
-    // --- 事前処理ここまで ---
+    // 事前用語抽出処理を削除（1件ずつの翻訳処理に移行）
 
     // 翻訳ジョブのリストを作成
     const jobs = fileHandler.createTranslationJobs(fileInfo);
@@ -175,20 +134,6 @@ function processNextInQueue(taskId) {
       return { status: 'complete', message: 'すべての翻訳が完了しました。' };
     }
 
-    // 確定辞書データをキャッシュから取得
-    let confirmedDictionary = [];
-    const cachedDictionary = cache.get(dictionaryCacheKey);
-    if (cachedDictionary) {
-      try {
-        confirmedDictionary = JSON.parse(cachedDictionary);
-        log('INFO', `[${taskId}] キャッシュから確定辞書を取得しました。`, { count: confirmedDictionary.length });
-      } catch (e) {
-        log('WARN', `[${taskId}] 確定辞書のパースに失敗しました。辞書なしで続行します。`, e);
-      }
-    } else {
-      log('INFO', `[${taskId}] 確定辞書キャッシュが見つかりませんでした。`);
-    }
-
     // ジョブを1つ取り出す
     const job = jobs.shift();
     
@@ -202,12 +147,40 @@ function processNextInQueue(taskId) {
     // 処理時間測定開始
     const jobStartTime = new Date().getTime();
 
-    // テキストを翻訳
-    const translator = new Translator(dictName);
-    const translationResult = translator.translateText(job.text, targetLang, confirmedDictionary);
-    const translatedText = translationResult.translatedText;
-    const newTermCandidates = translationResult.newTermCandidates;
-    log('INFO', `[${taskId}] 翻訳完了。新しい用語候補数: ${newTermCandidates ? newTermCandidates.length : 0}`);
+    // 1件ずつの用語抽出・辞書照合・翻訳処理
+    let confirmedPairs = [];
+    let newTermCandidates = [];
+    let translatedText = '';
+    
+    try {
+      // 1. 現在のジョブのテキストから用語抽出
+      if (job.text && job.text.trim().length > 0) {
+        const termExtractor = new TermExtractor();
+        const extractionResult = termExtractor.extract(job.text, 'auto', targetLang, '一般', {});
+        const extractedTerms = extractionResult.extracted_terms || [];
+        log('INFO', `[${taskId}] ジョブ用語抽出完了。抽出数: ${extractedTerms.length}`);
+
+        if (extractedTerms.length > 0 && dictName) {
+          // 2. 用語を現在の辞書と照合
+          const termMatcher = new TermMatcher();
+          const sourceTerms = extractedTerms.map(t => t.term);
+          const matchResult = termMatcher.match(sourceTerms, dictName);
+          confirmedPairs = matchResult.confirmedPairs || [];
+          log('INFO', `[${taskId}] ジョブ用語照合完了。確定ペア数: ${confirmedPairs.length}`);
+        }
+      }
+
+      // 3. 翻訳処理（確定ペアを使用）
+      const translator = new Translator(dictName);
+      const translationResult = translator.translateText(job.text, targetLang, confirmedPairs);
+      translatedText = translationResult.translatedText;
+      newTermCandidates = translationResult.newTermCandidates;
+      log('INFO', `[${taskId}] 翻訳完了。新しい用語候補数: ${newTermCandidates.length}`);
+
+    } catch (translationError) {
+      log('ERROR', `[${taskId}] 翻訳処理でエラーが発生しました`, translationError);
+      translatedText = job.text; // エラー時は原文をそのまま使用
+    }
 
     // 翻訳結果をファイルに書き込む
     const fileHandler = new FileHandler();

@@ -67,7 +67,7 @@ class TermExtractor {
       // 8. 統計生成
       const statistics = this._generateStatistics(uniqueTerms);
 
-      return {
+      const extractionResult = {
         extracted_terms: uniqueTerms,
         extraction_metadata: {
           ...statistics,
@@ -79,6 +79,11 @@ class TermExtractor {
           processing_timestamp: new Date().toISOString()
         }
       };
+
+      // デバッグ用: 最終的な用語抽出結果をJSON出力
+      log('INFO', '最終用語抽出結果:', JSON.stringify(extractionResult, null, 2));
+
+      return extractionResult;
 
     } catch (error) {
       log('ERROR', '用語抽出に失敗しました', error);
@@ -118,7 +123,7 @@ class TermExtractor {
    * @private
    */
   _callOpenAIForExtraction(normalizedText, sourceLang, targetLang, domain) {
-    const systemPrompt = `You are a specialized term extraction system that analyzes text and extracts important terms using structured output.
+    const systemPrompt = `You are a specialized term extraction system that analyzes text and extracts important SOURCE LANGUAGE terms only.
 
 Extract terms from the provided text according to these guidelines:
 
@@ -132,14 +137,13 @@ Extract terms from the provided text according to these guidelines:
 
 # Domain Context: ${this.config.SUPPORTED_DOMAINS[domain]}
 # Source Language: ${sourceLang === 'auto' ? 'Auto-detect' : this.config.SUPPORTED_LANGUAGES[sourceLang] || sourceLang}
-# Target Language: ${this.config.SUPPORTED_LANGUAGES[targetLang] || targetLang}
 
-# Instructions:
-1. Analyze the text and extract terms that are important for translation accuracy
-2. For each term, provide confidence score (0.0-1.0) based on importance and clarity
-3. Include context where the term appears
-4. Suggest target language translations when possible
-5. Assess overall domain confidence for the text
+# IMPORTANT INSTRUCTIONS:
+1. Extract SOURCE LANGUAGE terms only - DO NOT provide translations
+2. The normalized_term field should be the normalized form of the SOURCE term (not translation)
+3. For each term, provide confidence score (0.0-1.0) based on importance and clarity
+4. Include context where the term appears in the source text
+5. Focus on terms that would be important for creating translation dictionaries
 
 Return results in the specified JSON structure.`;
 
@@ -156,24 +160,19 @@ ${normalizedText}`;
           items: {
             type: "object",
             properties: {
-              term: { type: "string", description: "The extracted term" },
-              normalized_term: { type: "string", description: "Normalized version of the term" },
+              term: { type: "string", description: "The extracted term in source language" },
+              normalized_term: { type: "string", description: "Normalized version of the source term (NOT translation)" },
               term_type: {
                 type: "string",
                 enum: ["Proper Noun", "Technical Term", "Compound Term", "Acronym", "Product Name", "General Noun Phrase"],
                 description: "Type of the extracted term"
               },
-              definition: { type: "string", description: "Brief definition or explanation" },
-              context: { type: "string", description: "Context where the term appears" },
-              confidence: { type: "number", minimum: 0.0, maximum: 1.0, description: "Confidence score" },
-              source_language: { type: "string", description: "Detected source language" },
-              target_translations: {
-                type: "array",
-                items: { type: "string" },
-                description: "Suggested translations in target language"
-              }
+              definition: { type: "string", description: "Brief definition or explanation of the term" },
+              context: { type: "string", description: "Context where the term appears in source text" },
+              confidence: { type: "number", minimum: 0.0, maximum: 1.0, description: "Confidence score for term importance" },
+              source_language: { type: "string", description: "Detected source language" }
             },
-            required: ["term", "normalized_term", "term_type", "definition", "context", "confidence", "source_language", "target_translations"]
+            required: ["term", "normalized_term", "term_type", "definition", "context", "confidence", "source_language"]
           }
         },
         extraction_metadata: {
@@ -233,6 +232,10 @@ ${normalizedText}`;
       }
 
       const content = JSON.parse(result.choices[0].message.content);
+      
+      // デバッグ用: 用語抽出結果の詳細JSONログ出力
+      log('INFO', '用語抽出API生レスポンス:', JSON.stringify(result, null, 2));
+      log('INFO', '用語抽出結果詳細:', JSON.stringify(content, null, 2));
       
       // 応答の検証
       if (!content.extracted_terms || !Array.isArray(content.extracted_terms)) {
