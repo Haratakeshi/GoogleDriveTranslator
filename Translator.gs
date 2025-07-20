@@ -225,12 +225,43 @@ Translate texts from a source language to a target language with ABSOLUTE adhere
     }
 
     try {
-      // 既存の辞書データを取得して重複チェック
+      // 1. 無意味な用語ペアをフィルタリング
+      const validTermPairs = usedTermPairs.filter(pair => {
+        // 原文と訳文が同じペア（翻訳されていない）を除外
+        if (pair.source === pair.target) {
+          log('INFO', `翻訳されていないペアをスキップ: "${pair.source}" -> "${pair.target}"`);
+          return false;
+        }
+        
+        // 空文字や無効なペアを除外
+        if (!pair.source || !pair.target || 
+            typeof pair.source !== 'string' || typeof pair.target !== 'string' ||
+            pair.source.trim().length === 0 || pair.target.trim().length === 0) {
+          log('INFO', `無効なペアをスキップ: "${pair.source}" -> "${pair.target}"`);
+          return false;
+        }
+        
+        // 一般的すぎる単語や記号のみのペアを除外
+        const commonSymbols = ['【', '】', '・', '※', '■', '□', '●', '○'];
+        if (commonSymbols.some(symbol => pair.source.includes(symbol) && pair.source.length <= 3)) {
+          log('INFO', `記号のみのペアをスキップ: "${pair.source}" -> "${pair.target}"`);
+          return false;
+        }
+        
+        return true;
+      });
+
+      if (validTermPairs.length === 0) {
+        log('INFO', '有効な新規用語ペアがありませんでした');
+        return;
+      }
+
+      // 2. 既存の辞書データを取得して重複チェック
       const existingTerms = this.dictionary._getOrCacheAllTerms(this.dictName);
       const existingKeys = new Set(existingTerms.map(term => `${term.source}_${term.target}`));
 
-      // 重複していない新規用語のみをフィルタリング
-      const newTerms = usedTermPairs.filter(pair => {
+      // 3. 重複していない新規用語のみをフィルタリング
+      const newTerms = validTermPairs.filter(pair => {
         const key = `${pair.source}_${pair.target}`;
         const isDuplicate = existingKeys.has(key);
         if (isDuplicate) {

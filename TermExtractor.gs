@@ -59,7 +59,7 @@ class TermExtractor {
       }
 
       // 6. 品質フィルタリング
-      const filteredTerms = this._filterQuality(apiResponse.extracted_terms);
+      const filteredTerms = this._filterQuality(apiResponse.extracted_terms, normalizedText);
 
       // 7. 重複除去
       const uniqueTerms = this._removeDuplicates(filteredTerms);
@@ -134,6 +134,7 @@ Extract terms from the provided text according to these guidelines:
 4. **Acronyms**: Abbreviations and shortened forms
 5. **Product Names**: Specific product or service names
 6. **General Noun Phrases**: Contextually important noun phrases
+7. **Content Words**: Meaningful nouns, verbs, and adjectives (2+ characters)
 
 # Domain Context: ${this.config.SUPPORTED_DOMAINS[domain]}
 # Source Language: ${sourceLang === 'auto' ? 'Auto-detect' : this.config.SUPPORTED_LANGUAGES[sourceLang] || sourceLang}
@@ -144,6 +145,14 @@ Extract terms from the provided text according to these guidelines:
 3. For each term, provide confidence score (0.0-1.0) based on importance and clarity
 4. Include context where the term appears in the source text
 5. Focus on terms that would be important for creating translation dictionaries
+6. **EXTRACT AGGRESSIVELY**: Even from short text like "【依頼内容】", extract meaningful parts like "依頼" and "内容"
+7. **IGNORE SYMBOLS**: Focus on the meaningful content words, not symbols like 【】・※
+8. **MINIMUM 2 CHARACTERS**: Extract terms that are at least 2 characters long
+
+# Examples:
+- From "【依頼内容】" → extract "依頼" (request) and "内容" (content)
+- From "・プラットフォーム用" → extract "プラットフォーム" (platform)
+- From "※注意事項" → extract "注意" (attention) and "事項" (matter)
 
 Return results in the specified JSON structure.`;
 
@@ -253,10 +262,11 @@ ${normalizedText}`;
   /**
    * 抽出された用語の品質をフィルタリングする
    * @param {Array} terms - 抽出された用語リスト
+   * @param {string} originalText - 元のテキスト（信頼度調整用）
    * @return {Array} フィルタリングされた用語リスト
    * @private
    */
-  _filterQuality(terms) {
+  _filterQuality(terms, originalText = '') {
     if (!Array.isArray(terms)) {
       return [];
     }
@@ -283,8 +293,8 @@ ${normalizedText}`;
         return false;
       }
 
-      // 最低信頼度閾値のチェック（設定値の半分を最低ライン）
-      const minConfidence = this.config.QUALITY_GATE_THRESHOLD * 0.3;
+      // 最低信頼度閾値のチェック（短いテキストの場合は閾値を下げる）
+      const minConfidence = originalText.length <= 10 ? 0.1 : this.config.QUALITY_GATE_THRESHOLD * 0.3;
       if (term.confidence < minConfidence) {
         return false;
       }
