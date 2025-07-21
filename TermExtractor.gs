@@ -306,15 +306,8 @@ ${normalizedText}`;
 
       return true;
     }).map(term => {
-      // 信頼度スコアの調整（Utilsクラスを使用）
-      const adjustedConfidence = Utils.adjustConfidenceScore(term.confidence, {
-        contextRelevance: term.context ? 0.8 : 0.5,
-        termFrequency: 1.0 // 将来的に実装
-      });
-
       return {
         ...term,
-        confidence: adjustedConfidence,
         quality_filtered: true
       };
     });

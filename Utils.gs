@@ -222,4 +222,22 @@ class Utils {
       return defaultValue;
     }
   }
+
+  /**
+   * XML特殊文字をエスケープする
+   * @param {string} str - エスケープ対象の文字列
+   * @return {string} エスケープされた文字列
+   */
+  static escapeXml(str) {
+    if (typeof str !== 'string') return '';
+    return str.replace(/[<>&'"]/g, function (c) {
+      switch (c) {
+        case '<': return '&lt;';
+        case '>': return '&gt;';
+        case '&': return '&amp;';
+        case '\'': return '&apos;';
+        case '"': return '&quot;';
+      }
+    });
+  }
 }

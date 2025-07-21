@@ -71,68 +71,33 @@ class Translator {
    * @return {Object} 翻訳結果 {translations: ["..."], usedTermPairs: [...]}
    */
   callOpenAI(texts, targetLang, confirmedPairs) {
-    const systemPrompt = `You are a high-precision, AI-powered translation engine that STRICTLY enforces dictionary mappings and generates new term pairs for dictionary learning.
+    const systemPrompt = `You are an expert translator who processes structured XML input. Your mission is to:
+1. Accurately translate the text within the <text> tags into the specified target language.
+2. Strictly follow the translation rules provided in the <dictionary> tags.
+3. Extract all meaningful noun and proper noun pairs from your translation and list them in the output.
 
-# Primary Goal
-Translate texts from a source language to a target language with ABSOLUTE adherence to the provided dictionary and generate new term pairs for future translations.
+# Rules:
+- You MUST use the target term from the dictionary for any matching source term.
+- If a dictionary entry has identical source and target, that term MUST remain untranslated.
 
-# Input JSON Structure
-{
-  "dictionary": [
-    { "source": "source_term_1", "target": "target_term_1" },
-    ...
-  ],
-  "textsToTranslate": [
-    { "id": 0, "text": "The text to be translated." },
-    ...
-  ]
-}
+# Output Format:
+Return a SINGLE, VALID JSON object with two keys:
+1. "translations": An array of translated strings, in the same order as the input <text> tags.
+2. "term_pairs": An array of all extracted {source, target} pairs. If no relevant terms are found, return an empty array [].`;
 
-# Output JSON Structure
-{
-  "translations": [
-    {
-      "id": 0,
-      "sourceText": "The original text.",
-      "translatedText": "The translated text."
-    },
-    ...
-  ],
-  "usedTermPairs": [
-    { "source": "original_term", "target": "translated_term" },
-    ...
-  ]
-}
+    // XML形式で辞書を作成
+    const dictionaryXml = confirmedPairs.length > 0
+      ? `<dictionary>\n${confirmedPairs.map(p => `  <term source="${Utils.escapeXml(p.source)}">${Utils.escapeXml(p.target)}</term>`).join('\n')}\n</dictionary>`
+      : '<dictionary></dictionary>';
 
-# MANDATORY DICTIONARY ENFORCEMENT RULES
-1. **ABSOLUTE DICTIONARY PRIORITY**: For ANY dictionary source term found in the text, you MUST use the corresponding target term.
-2. **CONSISTENCY GUARANTEE**: The same source term MUST always translate to the same target term throughout ALL texts.
-3. **COMPREHENSIVE MATCHING**: Apply dictionary mappings for exact matches and case variations.
+    // XML形式で翻訳対象テキストを作成
+    const textsXml = `<texts>\n${texts.map((text, index) => `  <text id="${index}">${Utils.escapeXml(text)}</text>`).join('\n')}\n</texts>`;
 
-# Core Instructions
-1. **Translate**: Translate every object in the \`textsToTranslate\` array into ${CONFIG.SUPPORTED_LANGUAGES[targetLang]}.
-2. **Dictionary Enforcement**: Apply all provided dictionary mappings where source terms appear in the text.
-3. **Output \`translations\` Array**:
-   - The \`translations\` array MUST have the exact same number of elements as the input \`textsToTranslate\` array.
-   - Each object must contain \`id\`, \`sourceText\` (copy of original), and \`translatedText\`.
-4. **CRITICAL: Output \`usedTermPairs\` Array**:
-   - **ALWAYS include new term pairs** that you create during translation
-   - Include important nouns, technical terms, proper nouns, and key phrases you translate
-   - Each object MUST have \`source\` (original term) and \`target\` (your translation) keys
-   - Focus on terms that would be useful for future translations
-   - Example: If you translate "プラットフォーム" to "平台", include {"source": "プラットフォーム", "target": "平台"}
-   - **DO NOT leave usedTermPairs empty** - always include meaningful term pairs you created
-5. **Quality Assurance**: 
-   - Preserve all formatting, symbols, numbers, and special characters exactly as they appear in the source.
-6. **Strict JSON Format**: Output must be a single, valid JSON object matching the specified structure exactly.`;
+    const userPrompt = `Please translate the content within the <text> tags from the source language to ${CONFIG.SUPPORTED_LANGUAGES[targetLang]}.
 
-    const textsToTranslate = texts.map((text, index) => ({ id: index, text: text }));
-    const inputJson = {
-      dictionary: confirmedPairs.map(term => ({ source: term.source, target: term.target })),
-      textsToTranslate: textsToTranslate
-    };
+${dictionaryXml}
 
-    const userPrompt = `Please process the following JSON data according to the instructions in the system prompt.\n\n${JSON.stringify(inputJson, null, 2)}`;
+${textsXml}`;
 
     const payload = {
       model: this.model,
@@ -179,26 +144,13 @@ Translate texts from a source language to a target language with ABSOLUTE adhere
       log('INFO', '翻訳結果Schema詳細:', JSON.stringify(content, null, 2));
 
       if (!content.translations || !Array.isArray(content.translations) || content.translations.length !== texts.length) {
-        log('ERROR', 'API response validation failed', content);
+        log('ERROR', 'API response validation failed for translations', content);
         throw new Error('翻訳結果の形式または件数が不正です。');
       }
 
-      const orderedTranslations = new Array(texts.length);
-      for (const item of content.translations) {
-        if (item.id !== undefined && item.id < texts.length) {
-          orderedTranslations[item.id] = item.translatedText;
-        }
-      }
-      
-      for (let i = 0; i < texts.length; i++) {
-        if (orderedTranslations[i] === undefined) {
-          orderedTranslations[i] = texts[i];
-        }
-      }
-
       const finalResult = {
-        translations: orderedTranslations,
-        usedTermPairs: content.usedTermPairs || []
+        translations: content.translations,
+        usedTermPairs: content.term_pairs || [] // 全ての用語ペアを取得
       };
 
       // デバッグ用: 最終翻訳結果をJSON出力
