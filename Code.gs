@@ -227,10 +227,12 @@ function processNextInQueue(taskId) {
     
     // 最後のジョブを処理した場合
     if (jobs.length === 0) {
-      // PDF翻訳の場合、最終処理を実行
+      let finalUrl = taskData.targetUrl; // デフォルトは元のURL
+
+      // PDF翻訳の場合、最終処理を実行し、最終URLを取得
       if (job.handlerType === 'PdfHandler') {
         const pdfHandler = new PdfHandler();
-        pdfHandler.finalizeTranslation(job.tempDocId, job.originalPdfId);
+        finalUrl = pdfHandler.finalizeTranslation(job.tempDocId, job.originalPdfId) || finalUrl;
       }
 
       // 翻訳履歴を記録
@@ -239,7 +241,7 @@ function processNextInQueue(taskId) {
         const totalDuration = taskData.totalDuration + ((new Date().getTime() - taskData.startTime) / 1000);
         const historyData = {
           sourceUrl: taskData.sourceUrl || '',
-          targetUrl: taskData.targetUrl || '',
+          targetUrl: finalUrl, // 最終的なURLを履歴に記録
           sourceLang: taskData.sourceLang || CONFIG.DEFAULT_SOURCE_LANG,
           targetLang: targetLang,
           dictName: dictName,
@@ -260,7 +262,8 @@ function processNextInQueue(taskId) {
       return {
         status: 'complete',
         completedJobs: taskData.totalJobs,
-        totalJobs: taskData.totalJobs
+        totalJobs: taskData.totalJobs,
+        targetFileUrl: finalUrl // UIに最終的なURLを返す
       };
     }
 

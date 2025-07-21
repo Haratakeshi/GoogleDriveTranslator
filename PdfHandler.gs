@@ -45,14 +45,16 @@ class PdfHandler {
   finalizeTranslation(tempDocId, originalPdfId) {
     try {
       log('INFO', `翻訳後処理を開始します: tempDocId=${tempDocId}, originalPdfId=${originalPdfId}`);
-      // 1. 翻訳済みドキュメントをPDFとしてエクスポート
-      this.exportDocAsPdf(tempDocId, originalPdfId);
+      // 1. 翻訳済みドキュメントをPDFとしてエクスポートし、URLを取得
+      const finalUrl = this.exportDocAsPdf(tempDocId, originalPdfId);
 
       // 2. 一時ドキュメントを削除
       this.cleanup(tempDocId);
       log('INFO', `翻訳後処理が正常に完了しました。`);
+      return finalUrl;
     } catch (e) {
       log('ERROR', `PDF翻訳の最終処理に失敗しました: ${e.message}`, { tempDocId, originalPdfId });
+      return null;
     }
   }
 
@@ -88,17 +90,29 @@ class PdfHandler {
    */
   exportDocAsPdf(docId, originalPdfId) {
     try {
-      const originalPdfFile = this.driveApp.getFileById(originalPdfId);
-      const originalFolder = originalPdfFile.getParents().next();
+      // Drive API v3を使用して、共有ドライブ対応で親フォルダIDを取得
+      const file = this.driveApi.Files.get(originalPdfId, { supportsAllDrives: true, fields: 'parents,name' });
+      const parents = file.parents;
+      let originalFolder;
+
+      if (parents && parents.length > 0) {
+        originalFolder = this.driveApp.getFolderById(parents[0]);
+      } else {
+        // 親が取得できない場合はルートフォルダにフォールバック
+        originalFolder = this.driveApp.getRootFolder();
+      }
+
       const translatedDocFile = this.driveApp.getFileById(docId);
-      
       const pdfBlob = translatedDocFile.getAs('application/pdf');
-      const newPdfName = `${originalPdfFile.getName().replace(/\.pdf$/i, '')}_translated.pdf`;
+      const newPdfName = `${file.name.replace(/\.pdf$/i, '')}_translated.pdf`;
       
       const newPdfFile = originalFolder.createFile(pdfBlob).setName(newPdfName);
-      log('INFO', `翻訳済みPDFを作成しました: ${newPdfFile.getId()}`, { name: newPdfName });
+      const newPdfUrl = newPdfFile.getUrl();
+      log('INFO', `翻訳済みPDFを作成しました: ${newPdfFile.getId()}`, { name: newPdfName, url: newPdfUrl });
+      return newPdfUrl;
     } catch (e) {
       log('ERROR', `PDFエクスポートに失敗: ${e.message}`, { docId, originalPdfId });
+      return null;
     }
   }
 
