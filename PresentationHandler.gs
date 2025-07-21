@@ -74,11 +74,14 @@ class PresentationHandler {
       const slide = slides[slideIndex];
 
       if (job.type === 'shape') {
-        const shape = slide.getShapeById(job.location.shapeId);
-        if (shape && typeof shape.getText === 'function') {
-          shape.getText().setText(translatedText);
+        const element = slide.getPageElementById(job.location.shapeId);
+        if (element && element.getPageElementType() === SlidesApp.PageElementType.SHAPE) {
+          const shape = element.asShape();
+          if (typeof shape.getText === 'function') {
+            shape.getText().setText(translatedText);
+          }
         } else {
-          log('WARN', `シェイプが見つからないか、テキストを持っていません: ${job.location.shapeId}`, { targetFileId });
+          log('WARN', `シェイプが見つからないか、テキストをサポートしていません: ${job.location.shapeId}`, { targetFileId });
         }
       } else if (job.type === 'notes') {
         const notesPage = slide.getNotesPage();
