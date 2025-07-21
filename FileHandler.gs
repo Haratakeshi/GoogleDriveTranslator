@@ -13,6 +13,7 @@ class FileHandler {
       spreadsheet: new SpreadsheetHandler(),
       document: new DocumentHandler(),
       presentation: new PresentationHandler(),
+      pdf: new PdfHandler(), // PDFハンドラを追加
     };
   }
 
@@ -25,8 +26,9 @@ class FileHandler {
     try {
       const file = this.drive.getFileById(fileId);
       const mimeType = file.getMimeType();
+      const typeInfo = this.supportedTypes[mimeType] || (mimeType === 'application/pdf' ? { type: 'pdf' } : null);
 
-      if (!this.supportedTypes[mimeType]) {
+      if (!typeInfo) {
         throw new Error(CONFIG.ERROR_MESSAGES.UNSUPPORTED_FILE);
       }
 
@@ -34,7 +36,7 @@ class FileHandler {
         id: fileId,
         name: file.getName(),
         mimeType: mimeType,
-        type: this.supportedTypes[mimeType].type,
+        type: typeInfo.type,
         fileObject: file
       };
 

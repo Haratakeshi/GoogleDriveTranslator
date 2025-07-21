@@ -55,23 +55,33 @@ function setupTranslationQueue(fileUrl, targetLang, dictName) {
     const fileInfo = fileHandler.getFileInfo(fileId);
     log('INFO', `ファイル情報取得: ${fileInfo.name} (${fileInfo.type})`);
 
-    // 翻訳先のファイル（空）を先に作成
-    const targetFileInfo = fileHandler.createEmptyTranslatedFile(fileInfo, targetLang);
-    log('INFO', `翻訳先ファイル作成: ${targetFileInfo.name}`);
-
-    // タスクIDを先に生成して、後続の処理で利用する
     const taskId = `task_${new Date().getTime()}`;
     const cache = CacheService.getUserCache();
     log('INFO', `タスクID生成: ${taskId}`);
 
-    // 事前用語抽出処理を削除（1件ずつの翻訳処理に移行）
+    let targetFileId;
+    let targetFileUrl = '';
 
     // 翻訳ジョブのリストを作成
     const jobs = fileHandler.createTranslationJobs(fileInfo);
     log('INFO', `[${taskId}] 翻訳ジョブを${jobs.length}件作成しました`);
 
     if (jobs.length === 0) {
-      return { taskId: null, totalJobs: 0, targetFileUrl: targetFileInfo.url, message: '翻訳対象のテキストが見つかりませんでした。' };
+      return { taskId: null, totalJobs: 0, message: '翻訳対象のテキストが見つかりませんでした。' };
+    }
+
+    // 処理方法の決定
+    if (fileInfo.type === 'pdf') {
+      // PDFの場合は、一時ドキュメントが翻訳先となる
+      targetFileId = jobs[0].tempDocId; // どのジョブも同じIDを持っている
+      // PDFの場合、最終的なURLは後処理で生成されるため、ここでは一時的なドキュメントのURLを返す
+      targetFileUrl = `https://docs.google.com/document/d/${targetFileId}/edit`;
+    } else {
+      // 他形式の場合は、先に空のコピーファイルを作成する
+      const targetFileInfo = fileHandler.createEmptyTranslatedFile(fileInfo, targetLang);
+      targetFileId = targetFileInfo.id;
+      targetFileUrl = targetFileInfo.url;
+      log('INFO', `翻訳先ファイル作成: ${targetFileInfo.name}`);
     }
 
     // タスクデータをキャッシュに保存
@@ -81,11 +91,11 @@ function setupTranslationQueue(fileUrl, targetLang, dictName) {
       remainingJobs: jobs.length,
       targetLang: targetLang,
       dictName: dictName || '',
-      targetFileId: targetFileInfo.id,
+      targetFileId: targetFileId, // 動的に設定したIDを使用
       originalFileType: fileInfo.type,
       // 履歴記録用データ
       sourceUrl: fileUrl,
-      targetUrl: targetFileInfo.url,
+      targetUrl: targetFileUrl, // 動的に設定したURLを使用
       sourceLang: CONFIG.DEFAULT_SOURCE_LANG,
       totalSourceChars: 0,
       totalTargetChars: 0,
@@ -98,7 +108,7 @@ function setupTranslationQueue(fileUrl, targetLang, dictName) {
     return {
       taskId: taskId,
       totalJobs: jobs.length,
-      targetFileUrl: targetFileInfo.url
+      targetFileUrl: targetFileUrl
     };
 
   } catch (error) {
@@ -184,7 +194,9 @@ function processNextInQueue(taskId) {
 
     // 翻訳結果をファイルに書き込む
     const fileHandler = new FileHandler();
-    fileHandler.writeTranslatedJob(targetFileId, originalFileType, job, translatedText);
+    // PDF翻訳の場合は、一時的なGoogleドキュメントに書き込むため、documentハンドラを指定する
+    const writerFileType = (originalFileType === 'pdf') ? 'document' : originalFileType;
+    fileHandler.writeTranslatedJob(targetFileId, writerFileType, job, translatedText);
 
     // 処理時間測定終了と統計情報の更新
     const jobEndTime = new Date().getTime();
@@ -215,6 +227,12 @@ function processNextInQueue(taskId) {
     
     // 最後のジョブを処理した場合
     if (jobs.length === 0) {
+      // PDF翻訳の場合、最終処理を実行
+      if (job.handlerType === 'PdfHandler') {
+        const pdfHandler = new PdfHandler();
+        pdfHandler.finalizeTranslation(job.tempDocId, job.originalPdfId);
+      }
+
       // 翻訳履歴を記録
       try {
         const history = new History();
