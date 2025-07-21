@@ -173,15 +173,14 @@ ${normalizedText}`;
               normalized_term: { type: "string", description: "Normalized version of the source term (NOT translation)" },
               term_type: {
                 type: "string",
-                enum: ["Proper Noun", "Technical Term", "Compound Term", "Acronym", "Product Name", "General Noun Phrase"],
+                enum: ["Proper Noun", "Technical Term", "Compound Term", "Acronym", "Product Name", "General Noun Phrase", "Content Word"],
                 description: "Type of the extracted term"
               },
-              definition: { type: "string", description: "Brief definition or explanation of the term" },
               context: { type: "string", description: "Context where the term appears in source text" },
               confidence: { type: "number", minimum: 0.0, maximum: 1.0, description: "Confidence score for term importance" },
               source_language: { type: "string", description: "Detected source language" }
             },
-            required: ["term", "normalized_term", "term_type", "definition", "context", "confidence", "source_language"]
+            required: ["term", "normalized_term", "term_type", "context", "confidence", "source_language"]
           }
         },
         extraction_metadata: {
@@ -310,8 +309,7 @@ ${normalizedText}`;
       // 信頼度スコアの調整（Utilsクラスを使用）
       const adjustedConfidence = Utils.adjustConfidenceScore(term.confidence, {
         contextRelevance: term.context ? 0.8 : 0.5,
-        termFrequency: 1.0, // 将来的に実装
-        definitionClarity: term.definition && term.definition.length > 10 ? 0.9 : 0.6
+        termFrequency: 1.0 // 将来的に実装
       });
 
       return {
