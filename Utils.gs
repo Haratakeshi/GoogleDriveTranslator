@@ -241,3 +241,24 @@ class Utils {
     });
   }
 }
+
+/**
+ * Google Drive上のファイルIDからファビコン用のData URIを生成します。
+ * @param {string} fileId - Google DriveのファイルID。
+ * @return {string} - ファビコンとして使用できるData URI。失敗した場合は空文字を返す。
+ */
+function getFaviconDataUri(fileId) {
+  if (!fileId) {
+    return '';
+  }
+  try {
+    const file = DriveApp.getFileById(fileId);
+    const blob = file.getBlob();
+    const contentType = blob.getContentType();
+    const base64Data = Utilities.base64Encode(blob.getBytes());
+    return `data:${contentType};base64,${base64Data}`;
+  } catch (e) {
+    log('WARN', `ファビコンのData URI生成中にエラーが発生しました: ${e.message}`, { fileId });
+    return ''; // エラー時は空文字を返す
+  }
+}

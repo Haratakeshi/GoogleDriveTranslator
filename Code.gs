@@ -9,8 +9,10 @@ function doGet() {
     // 初期化処理
     initializeConfig();
     
-    return HtmlService.createTemplateFromFile('UI')
-      .evaluate()
+    const htmlTemplate = HtmlService.createTemplateFromFile('UI');
+    htmlTemplate.faviconUrl = getFaviconDataUri(CONFIG.FAVICON_FILE_ID);
+
+    return htmlTemplate.evaluate()
       .setTitle('Google Drive翻訳ツール')
       .setWidth(1000)
       .setHeight(800)

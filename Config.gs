@@ -124,7 +124,10 @@ const CONFIG = {
   
   // ログ設定
   ENABLE_LOGGING: true,
-  LOG_LEVEL: 'INFO' // DEBUG, INFO, WARN, ERROR
+  LOG_LEVEL: 'INFO', // DEBUG, INFO, WARN, ERROR
+
+  // ファビコン設定
+  FAVICON_FILE_ID: '' // ここにGoogle Drive上の画像ファイルIDを設定
 };
 
 /**
