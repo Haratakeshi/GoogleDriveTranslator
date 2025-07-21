@@ -18,29 +18,36 @@ class PresentationHandler {
     slides.forEach((slide, slideIndex) => {
       // スライド上の全シェイプからテキストを持つものをジョブ化
       slide.getShapes().forEach(shape => {
-        if (shape.hasText() && shape.getText().asString().trim() !== '') {
-          jobs.push({
-            type: 'shape',
-            text: shape.getText().asString(),
-            location: {
-              slideIndex: slideIndex,
-              shapeId: shape.getObjectId()
-            }
-          });
+        // Check if the shape supports text and has content
+        if (typeof shape.getText === 'function') {
+          const originalText = shape.getText().asString();
+          if (originalText.trim() !== '') {
+            jobs.push({
+              type: 'shape',
+              text: originalText,
+              location: {
+                slideIndex: slideIndex,
+                shapeId: shape.getObjectId()
+              }
+            });
+          }
         }
       });
 
       // スピーカーノートをジョブ化
       const notesPage = slide.getNotesPage();
       const notesShape = notesPage.getSpeakerNotesShape();
-      if (notesShape && notesShape.hasText() && notesShape.getText().asString().trim() !== '') {
-        jobs.push({
-          type: 'notes',
-          text: notesShape.getText().asString(),
-          location: {
-            slideIndex: slideIndex
-          }
-        });
+      if (notesShape && typeof notesShape.getText === 'function') {
+        const originalText = notesShape.getText().asString();
+        if (originalText.trim() !== '') {
+          jobs.push({
+            type: 'notes',
+            text: originalText,
+            location: {
+              slideIndex: slideIndex
+            }
+          });
+        }
       }
     });
 
@@ -68,7 +75,7 @@ class PresentationHandler {
 
       if (job.type === 'shape') {
         const shape = slide.getShapeById(job.location.shapeId);
-        if (shape && shape.hasText()) {
+        if (shape && typeof shape.getText === 'function') {
           shape.getText().setText(translatedText);
         } else {
           log('WARN', `シェイプが見つからないか、テキストを持っていません: ${job.location.shapeId}`, { targetFileId });
@@ -97,13 +104,13 @@ class PresentationHandler {
 
     slides.forEach(slide => {
       slide.getShapes().forEach(shape => {
-        if (shape.hasText()) {
+        if (typeof shape.getText === 'function') {
           texts.push(shape.getText().asString());
         }
       });
       const notesPage = slide.getNotesPage();
       const notesShape = notesPage.getSpeakerNotesShape();
-      if (notesShape && notesShape.hasText()) {
+      if (notesShape && typeof notesShape.getText === 'function') {
         texts.push(notesShape.getText().asString());
       }
     });
