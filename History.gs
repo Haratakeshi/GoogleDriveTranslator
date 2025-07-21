@@ -545,7 +545,7 @@ class History {
    * @return {string} 推定コスト（ドル）
    */
   estimateApiCost(charCount) {
-    // GPT-4o-miniの料金（仮定値）
+    // GPT-4.1-miniの料金（仮定値）
     // 入力: $0.15 / 1M tokens
     // 出力: $0.60 / 1M tokens
     // 1 token ≈ 0.75文字（日本語の場合）
