@@ -49,9 +49,8 @@ class DocumentHandler {
 
       if (paragraphIndex < paragraphs.length) {
         const originalParagraph = paragraphs[paragraphIndex];
-        // 元の段落のテキストをクリアし、翻訳されたテキストを挿入
-        originalParagraph.clear();
-        originalParagraph.appendText(translatedText);
+        // 画像などのオブジェクトを保持しながらテキストのみを置換
+        this.replaceTextPreservingImages(originalParagraph, job.text, translatedText);
       } else {
         log('WARN', `段落インデックスが範囲外です: ${paragraphIndex}`, { targetFileId });
       }
@@ -68,5 +67,46 @@ class DocumentHandler {
   extractAllText(fileId) {
     const doc = this.documentApp.openById(fileId);
     return doc.getBody().getText();
+  }
+
+  /**
+   * 段落内の画像やオブジェクトを保持しながらテキストのみを置換する
+   * @private
+   * @param {Paragraph} paragraph - 置換対象の段落
+   * @param {string} originalText - 元のテキスト
+   * @param {string} translatedText - 翻訳されたテキスト
+   */
+  replaceTextPreservingImages(paragraph, originalText, translatedText) {
+    const numChildren = paragraph.getNumChildren();
+    
+    // 段落内の要素を調べて、画像があるかチェック
+    let hasImages = false;
+    for (let i = 0; i < numChildren; i++) {
+      const child = paragraph.getChild(i);
+      if (child.getType() === this.documentApp.ElementType.INLINE_IMAGE || 
+          child.getType() === this.documentApp.ElementType.INLINE_DRAWING) {
+        hasImages = true;
+        break;
+      }
+    }
+
+    if (!hasImages) {
+      // 画像がない場合は従来通りの処理
+      paragraph.clear();
+      paragraph.appendText(translatedText);
+    } else {
+      // 画像がある場合はテキスト要素のみを置換
+      for (let i = 0; i < numChildren; i++) {
+        const child = paragraph.getChild(i);
+        if (child.getType() === this.documentApp.ElementType.TEXT) {
+          const textElement = child.asText();
+          const text = textElement.getText();
+          // 元のテキストと一致する部分を翻訳されたテキストで置換
+          if (text.trim() === originalText.trim()) {
+            textElement.setText(translatedText);
+          }
+        }
+      }
+    }
   }
 }

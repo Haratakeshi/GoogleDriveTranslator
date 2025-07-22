@@ -48,8 +48,7 @@ class PdfHandler {
       // 1. 翻訳済みドキュメントをPDFとしてエクスポートし、URLを取得
       const finalUrl = this.exportDocAsPdf(tempDocId, originalPdfId);
 
-      // 2. 一時ドキュメントを削除
-      this.cleanup(tempDocId);
+      // 2. 一時ドキュメントは保持（画像データ等の再利用のため）
       log('INFO', `翻訳後処理が正常に完了しました。`);
       return finalUrl;
     } catch (e) {
@@ -116,27 +115,4 @@ class PdfHandler {
     }
   }
 
-  /**
-   * 一時ファイルを削除する
-   * @private
-   * @param {string} fileId - 削除するファイルのID
-   */
-  cleanup(fileId) {
-    try {
-      // このgetはファイル名を取得するためだけなので、エラーが出ても処理を続行させる
-      let fileName = 'unknown';
-      try {
-        const file = this.driveApi.Files.get(fileId, { supportsAllDrives: true });
-        fileName = file.name;
-      } catch (e) {
-        log('WARN', `クリーンアップ中のファイル名取得に失敗: ${e.message}`, { fileId });
-      }
-
-      this.driveApi.Files.remove(fileId, { supportsAllDrives: true });
-      log('INFO', `一時ファイル (${fileName}) を削除しました。`);
-    } catch (e) {
-      // ファイルが存在しない場合などのエラーは無視する
-      log('WARN', `一時ファイルの削除に失敗しました（無視）: ${e.message}`, { fileId });
-    }
-  }
 }
