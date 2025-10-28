@@ -581,6 +581,51 @@
       .filter-group {
         width: 100%;
       }
+      
+      /* バッチ処理のモバイル対応 */
+      .batch-file-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+      }
+      
+      .batch-file-info {
+        width: 100%;
+      }
+      
+      .batch-file-status {
+        margin-left: 0;
+        width: 100%;
+        justify-content: space-between;
+      }
+      
+      .batch-history-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+      }
+      
+      .batch-history-actions {
+        opacity: 1;
+        width: 100%;
+        justify-content: flex-end;
+      }
+      
+      .modal-content {
+        width: 95%;
+        margin: 20px auto;
+        max-height: 90vh;
+        overflow-y: auto;
+      }
+      
+      details summary {
+        font-size: 14px;
+      }
+      
+      textarea {
+        font-size: 14px;
+        min-height: 120px;
+      }
     }
     
     /* トースト通知 */
@@ -640,6 +685,274 @@
       animation: spin 1s linear infinite;
       margin: 0 auto 20px;
     }
+    
+    /* バッチ処理専用スタイル */
+    textarea {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 16px;
+      font-family: inherit;
+      resize: vertical;
+      transition: all 0.3s;
+      background-color: #fafafa;
+      line-height: 1.5;
+    }
+    
+    textarea:focus {
+      outline: none;
+      border-color: #4285f4;
+      background-color: white;
+      box-shadow: 0 0 0 3px rgba(66, 133, 244, 0.1);
+    }
+    
+    details {
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      padding: 10px;
+      background: #f9f9f9;
+    }
+    
+    details summary {
+      list-style: none;
+      padding: 10px;
+      margin: -10px;
+      background: #f0f0f0;
+      border-radius: 4px;
+      transition: background-color 0.3s;
+    }
+    
+    details summary:hover {
+      background: #e8e8e8;
+    }
+    
+    details[open] summary {
+      border-bottom: 1px solid #e0e0e0;
+      margin-bottom: 10px;
+    }
+    
+    .batch-file-item {
+      display: flex;
+      align-items: center;
+      padding: 12px;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      margin-bottom: 8px;
+      background: white;
+      transition: all 0.3s;
+    }
+    
+    .batch-file-item:hover {
+      border-color: #4285f4;
+      background: #f8f9ff;
+    }
+    
+    .batch-file-icon {
+      width: 24px;
+      height: 24px;
+      margin-right: 12px;
+      color: #666;
+    }
+    
+    .batch-file-info {
+      flex: 1;
+      min-width: 0;
+    }
+    
+    .batch-file-name {
+      font-weight: 500;
+      color: #333;
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    .batch-file-url {
+      font-size: 12px;
+      color: #666;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    .batch-file-status {
+      margin-left: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .batch-file-progress {
+      width: 60px;
+      height: 4px;
+      background: #e0e0e0;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    
+    .batch-file-progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #4285f4 0%, #34a853 100%);
+      width: 0%;
+      transition: width 0.3s;
+    }
+    
+    .batch-status-pending {
+      color: #666;
+    }
+    
+    .batch-status-processing {
+      color: #ff9800;
+      animation: pulse 1.5s ease-in-out infinite alternate;
+    }
+    
+    .batch-status-completed {
+      color: #4caf50;
+    }
+    
+    .batch-status-failed {
+      color: #f44336;
+    }
+    
+    .batch-status-paused {
+      color: #2196f3;
+    }
+    
+    @keyframes pulse {
+      from { opacity: 1; }
+      to { opacity: 0.5; }
+    }
+    
+    .batch-history-item {
+      display: flex;
+      align-items: center;
+      padding: 16px;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      background: white;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    
+    .batch-history-item:hover {
+      border-color: #4285f4;
+      background: #f8f9ff;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .batch-history-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 16px;
+      color: white;
+      font-size: 20px;
+    }
+    
+    .batch-history-icon.completed {
+      background: #4caf50;
+    }
+    
+    .batch-history-icon.failed {
+      background: #f44336;
+    }
+    
+    .batch-history-icon.processing {
+      background: #ff9800;
+    }
+    
+    .batch-history-icon.paused {
+      background: #2196f3;
+    }
+    
+    .batch-history-info {
+      flex: 1;
+      min-width: 0;
+    }
+    
+    .batch-history-name {
+      font-weight: 500;
+      font-size: 16px;
+      color: #333;
+      margin-bottom: 4px;
+    }
+    
+    .batch-history-details {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 4px;
+    }
+    
+    .batch-history-stats {
+      font-size: 12px;
+      color: #999;
+    }
+    
+    .batch-history-actions {
+      display: flex;
+      gap: 8px;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    
+    .batch-history-item:hover .batch-history-actions {
+      opacity: 1;
+    }
+    
+    .batch-validation-result {
+      background: #f5f5f5;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 12px;
+      margin-top: 10px;
+      font-size: 14px;
+    }
+    
+    .batch-validation-success {
+      background: #e8f5e9;
+      border-color: #4caf50;
+      color: #2e7d32;
+    }
+    
+    .batch-validation-error {
+      background: #ffebee;
+      border-color: #f44336;
+      color: #c62828;
+    }
+    
+    .batch-validation-warning {
+      background: #fff3e0;
+      border-color: #ff9800;
+      color: #ef6c00;
+    }
+    
+    .url-validation-item {
+      display: flex;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .url-validation-item:last-child {
+      border-bottom: none;
+    }
+    
+    .url-validation-icon {
+      margin-right: 8px;
+      font-size: 16px;
+    }
+    
+    .url-validation-text {
+      flex: 1;
+      font-size: 13px;
+    }
   </style>
 </head>
 
@@ -658,6 +971,10 @@
       <button class="tab active" onclick="switchTab('translate')">
         <span class="material-icons">translate</span>
         翻訳
+      </button>
+      <button class="tab" onclick="switchTab('batch')">
+        <span class="material-icons">library_books</span>
+        バッチ処理
       </button>
       <button class="tab" onclick="switchTab('history')">
         <span class="material-icons">history</span>
@@ -850,6 +1167,182 @@
       </div>
     </div>
     
+    <!-- バッチ処理タブ -->
+    <div id="batch-tab" class="tab-content">
+      <div class="card">
+        <h2>
+          <span class="material-icons">library_books</span>
+          バッチ処理設定
+        </h2>
+        
+        <form id="batch-form">
+          <div class="form-group">
+            <label for="batch-name">バッチ名</label>
+            <input type="text" id="batch-name" placeholder="例: 2024年度プレゼンテーション翻訳">
+            <div class="help-text">
+              <span class="material-icons" style="font-size: 14px; vertical-align: middle;">info</span>
+              空白の場合、自動的に日時が設定されます
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="batch-urls">ファイルURL（1行1URL）</label>
+            <textarea id="batch-urls" rows="8" placeholder="https://docs.google.com/spreadsheets/d/...
+https://docs.google.com/document/d/...
+https://docs.google.com/presentation/d/..." required></textarea>
+            <div class="help-text">
+              <span class="material-icons" style="font-size: 14px; vertical-align: middle;">info</span>
+              Google Drive のファイルURLを1行ずつ入力してください
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="batch-target-lang">翻訳先言語</label>
+            <select id="batch-target-lang" required>
+              <option value="">言語を選択...</option>
+              <option value="ja">日本語</option>
+              <option value="en">英語</option>
+              <option value="zh-CN">中国語（簡体字）</option>
+              <option value="zh-TW">中国語（繁体字）</option>
+              <option value="ko">韓国語</option>
+              <option value="es">スペイン語</option>
+              <option value="fr">フランス語</option>
+              <option value="de">ドイツ語</option>
+              <option value="it">イタリア語</option>
+              <option value="pt">ポルトガル語</option>
+              <option value="ru">ロシア語</option>
+              <option value="ar">アラビア語</option>
+              <option value="hi">ヒンディー語</option>
+              <option value="th">タイ語</option>
+              <option value="vi">ベトナム語</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label for="batch-dict-select">使用する辞書（オプション）</label>
+            <select id="batch-dict-select" style="width: 100%;">
+              <option value="">辞書を使用しない</option>
+            </select>
+            <div class="help-text">
+              <span class="material-icons" style="font-size: 14px; vertical-align: middle;">lightbulb</span>
+              全ファイルに同じ辞書が適用されます
+            </div>
+          </div>
+          
+          <details style="margin-bottom: 20px;">
+            <summary style="cursor: pointer; font-weight: 500; margin-bottom: 10px;">
+              <span class="material-icons" style="font-size: 18px; vertical-align: middle;">tune</span>
+              詳細設定
+            </summary>
+            <div style="padding-left: 20px;">
+              <div class="form-group">
+                <label>
+                  <input type="checkbox" id="batch-continue-on-error" checked>
+                  エラー時も他のファイルの処理を継続する
+                </label>
+              </div>
+              <div class="form-group">
+                <label>
+                  <input type="checkbox" id="batch-auto-retry" checked>
+                  失敗時に自動で再試行する（最大3回）
+                </label>
+              </div>
+            </div>
+          </details>
+          
+          <div class="button-group">
+            <button type="submit" class="btn-primary" id="batch-start-btn">
+              <span class="material-icons">play_arrow</span>
+              バッチ処理を開始
+            </button>
+            <button type="button" class="btn-secondary" onclick="validateBatchUrls()">
+              <span class="material-icons">check_circle</span>
+              URL検証
+            </button>
+            <button type="button" class="btn-secondary" onclick="resetBatchForm()">
+              <span class="material-icons">refresh</span>
+              リセット
+            </button>
+          </div>
+        </form>
+      </div>
+      
+      <!-- バッチ処理監視セクション -->
+      <div class="card" id="batch-monitor" style="display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <h2 style="margin: 0;">
+            <span class="material-icons">monitor</span>
+            バッチ処理監視
+          </h2>
+          <div class="button-group">
+            <button class="btn-secondary" id="batch-pause-btn" onclick="pauseBatch()">
+              <span class="material-icons">pause</span>
+              一時停止
+            </button>
+            <button class="btn-secondary" id="batch-resume-btn" onclick="resumeBatch()" style="display: none;">
+              <span class="material-icons">play_arrow</span>
+              再開
+            </button>
+            <button class="btn-secondary" onclick="cancelBatch()">
+              <span class="material-icons">stop</span>
+              キャンセル
+            </button>
+          </div>
+        </div>
+        
+        <div class="stats-grid" style="margin-bottom: 20px;">
+          <div class="stat-card">
+            <div class="stat-value" id="batch-progress-percent">0%</div>
+            <div class="stat-label">進捗</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="batch-completed-files">0</div>
+            <div class="stat-label">完了ファイル数</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="batch-failed-files">0</div>
+            <div class="stat-label">失敗ファイル数</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="batch-elapsed-time">0分</div>
+            <div class="stat-label">経過時間</div>
+          </div>
+        </div>
+        
+        <div class="progress-container" style="display: block; margin-bottom: 20px;">
+          <div class="progress-bar">
+            <div class="progress-fill" id="batch-progress-fill"></div>
+          </div>
+          <p id="batch-progress-status" class="progress-status">準備中...</p>
+        </div>
+        
+        <div id="batch-file-list">
+          <!-- ファイル別進捗リストがここに表示されます -->
+        </div>
+      </div>
+      
+      <!-- バッチ履歴セクション -->
+      <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <h2 style="margin: 0;">
+            <span class="material-icons">folder_open</span>
+            バッチ処理履歴
+          </h2>
+          <button class="btn-secondary" onclick="refreshBatchHistory()">
+            <span class="material-icons">refresh</span>
+            更新
+          </button>
+        </div>
+        
+        <div id="batch-history-content">
+          <div class="empty-state">
+            <div class="material-icons empty-state-icon">hourglass_empty</div>
+            <p>読み込み中...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    
     <!-- 統計タブ -->
     <div id="statistics-tab" class="tab-content">
       <div class="card">
@@ -965,6 +1458,32 @@
     </div>
   </div>
   
+  <!-- バッチ詳細モーダル -->
+  <div id="batch-detail-modal" class="modal">
+    <div class="modal-content" style="max-width: 800px;">
+      <div class="modal-header">
+        <h3 id="batch-detail-title">バッチ処理詳細</h3>
+        <button class="modal-close" onclick="hideBatchDetailModal()">
+          <span class="material-icons">close</span>
+        </button>
+      </div>
+      
+      <div id="batch-detail-content">
+        <!-- バッチ詳細情報がここに表示されます -->
+      </div>
+      
+      <div class="button-group" style="margin-top: 20px;">
+        <button class="btn-primary" id="batch-resume-from-modal" onclick="resumeBatchFromModal()" style="display: none;">
+          <span class="material-icons">play_arrow</span>
+          再開
+        </button>
+        <button class="btn-secondary" onclick="hideBatchDetailModal()">
+          閉じる
+        </button>
+      </div>
+    </div>
+  </div>
+  
   <!-- トースト通知 -->
   <div id="toast" class="toast"></div>
   
@@ -983,6 +1502,16 @@
     let historyData = [];
     let systemInfo = null;
     let currentTask = { id: null, totalJobs: 0, completedJobs: 0, targetFileUrl: null };
+    
+    // バッチ処理関連変数
+    let currentBatch = {
+      id: null,
+      status: null,
+      monitoringInterval: null,
+      startTime: null
+    };
+    let batchHistoryData = [];
+    let validationResults = null;
 
     // --- 初期化 ---
     document.addEventListener('DOMContentLoaded', function() {
@@ -994,11 +1523,13 @@
       document.getElementById('translate-form').addEventListener('submit', handleTranslateSetup);
       document.getElementById('create-dict-form').addEventListener('submit', handleCreateDict);
       document.getElementById('import-dict-form').addEventListener('submit', handleImportDict);
+      document.getElementById('batch-form').addEventListener('submit', handleBatchSetup);
       
       // 初期データを読み込み
       loadDictionaries();
       loadHistory();
       checkSystemStatus();
+      loadBatchHistory();
       
       // URLパラメータから初期値を設定
       const urlParams = new URLSearchParams(window.location.search);
@@ -1151,6 +1682,10 @@
       if (tabName === 'history') loadHistory();
       if (tabName === 'dictionary') refreshDictionaries();
       if (tabName === 'statistics') loadStatistics('all');
+      if (tabName === 'batch') {
+        updateBatchDictionarySelect();
+        loadBatchHistory();
+      }
     }
 
     function loadDictionaries() {
@@ -1166,6 +1701,22 @@
 
     function updateDictionarySelect() {
       const select = document.getElementById('dict-select');
+      select.innerHTML = '<option value="">辞書を使用しない</option>';
+      (dictionaries || []).forEach(dict => {
+        const option = document.createElement('option');
+        option.value = dict.name;
+        option.textContent = `${dict.name} (${dict.termCount}語)`;
+        select.appendChild(option);
+      });
+      
+      // バッチ処理用の辞書選択も更新
+      updateBatchDictionarySelect();
+    }
+    
+    function updateBatchDictionarySelect() {
+      const select = document.getElementById('batch-dict-select');
+      if (!select) return;
+      
       select.innerHTML = '<option value="">辞書を使用しない</option>';
       (dictionaries || []).forEach(dict => {
         const option = document.createElement('option');
@@ -1353,6 +1904,716 @@
     function hideLoading() { document.getElementById('loading-overlay').style.display = 'none'; }
     function openHistorySpreadsheet() { if (systemInfo && systemInfo.historySheetUrl) window.open(systemInfo.historySheetUrl, '_blank'); }
     function openDictionarySpreadsheet() { if (systemInfo && systemInfo.dictionarySheetUrl) window.open(systemInfo.dictionarySheetUrl, '_blank'); }
+
+    // --- バッチ処理関数群 ---
+    
+    /**
+     * バッチ処理セットアップ処理
+     */
+    function handleBatchSetup(e) {
+      e.preventDefault();
+      
+      const batchName = document.getElementById('batch-name').value.trim();
+      const urlsText = document.getElementById('batch-urls').value.trim();
+      const targetLang = document.getElementById('batch-target-lang').value;
+      const dictName = document.getElementById('batch-dict-select').value;
+      
+      if (!urlsText || !targetLang) {
+        showToast('必須項目を入力してください', 'error');
+        return;
+      }
+      
+      // URLを行ごとに分割し、空行を除去
+      const fileUrls = urlsText.split('\n')
+        .map(url => url.trim())
+        .filter(url => url.length > 0);
+      
+      if (fileUrls.length === 0) {
+        showToast('有効なURLが入力されていません', 'error');
+        return;
+      }
+      
+      if (fileUrls.length > 50) { // 制限値は調整可能
+        showToast('一度に処理できるファイル数は50個までです', 'error');
+        return;
+      }
+      
+      setUiLock(true, 'バッチ処理を作成中...');
+      
+      // BatchTranslationManagerのcreateBatchを呼び出し
+      google.script.run
+        .withSuccessHandler(result => {
+          if (result.error) {
+            handleError(result.error);
+            return;
+          }
+          
+          // バッチ作成成功
+          currentBatch.id = result.batchId;
+          currentBatch.status = 'created';
+          
+          showToast(`バッチ処理を作成しました: ${result.validFiles}ファイル処理対象`, 'success');
+          
+          // エラーファイルがある場合は警告表示
+          if (result.invalidFiles > 0) {
+            showValidationResult(result.fileErrors, 'error');
+          }
+          
+          // バッチ処理を開始
+          startBatch(result.batchId);
+        })
+        .withFailureHandler(handleError)
+        .createBatch(fileUrls, targetLang, dictName, batchName);
+    }
+    
+    /**
+     * バッチ処理開始
+     */
+    function startBatch(batchId) {
+      google.script.run
+        .withSuccessHandler(result => {
+          if (result.status === 'error') {
+            handleError(result.message);
+            return;
+          }
+          
+          // バッチ処理開始成功
+          currentBatch.id = batchId;
+          currentBatch.status = 'processing';
+          currentBatch.startTime = new Date();
+          
+          // 監視セクションを表示
+          document.getElementById('batch-monitor').style.display = 'block';
+          
+          // 進捗監視を開始
+          startBatchMonitoring();
+          
+          setUiLock(false);
+        })
+        .withFailureHandler(handleError)
+        .startBatch(batchId);
+    }
+    
+    /**
+     * バッチ処理監視開始
+     */
+    function startBatchMonitoring() {
+      if (currentBatch.monitoringInterval) {
+        clearInterval(currentBatch.monitoringInterval);
+      }
+      
+      // 即座に一回実行
+      monitorBatchProgress();
+      
+      // 定期的な監視を開始（3秒間隔）
+      currentBatch.monitoringInterval = setInterval(monitorBatchProgress, 3000);
+    }
+    
+    /**
+     * バッチ処理監視停止
+     */
+    function stopBatchMonitoring() {
+      if (currentBatch.monitoringInterval) {
+        clearInterval(currentBatch.monitoringInterval);
+        currentBatch.monitoringInterval = null;
+      }
+    }
+    
+    /**
+     * バッチ進捗監視メイン処理
+     */
+    function monitorBatchProgress() {
+      if (!currentBatch.id) return;
+      
+      google.script.run
+        .withSuccessHandler(status => {
+          if (status.status === 'error') {
+            console.error('バッチステータス取得エラー:', status.message);
+            return;
+          }
+          
+          updateBatchUI(status);
+          
+          // 完了または失敗時は監視停止
+          if (status.status === 'completed' || status.status === 'failed') {
+            stopBatchMonitoring();
+            onBatchCompleted(status);
+          }
+        })
+        .withFailureHandler(error => {
+          console.error('バッチ監視エラー:', error);
+        })
+        .getBatchStatus(currentBatch.id);
+    }
+    
+    /**
+     * バッチ処理UI更新
+     */
+    function updateBatchUI(status) {
+      // 進捗率更新
+      document.getElementById('batch-progress-percent').textContent = status.progress + '%';
+      document.getElementById('batch-progress-fill').style.width = status.progress + '%';
+      
+      // 統計情報更新
+      document.getElementById('batch-completed-files').textContent = status.completedFiles;
+      document.getElementById('batch-failed-files').textContent = status.failedFiles;
+      
+      // 経過時間更新
+      if (currentBatch.startTime) {
+        const elapsed = Math.floor((new Date() - currentBatch.startTime) / 1000 / 60);
+        document.getElementById('batch-elapsed-time').textContent = elapsed + '分';
+      }
+      
+      // ステータステキスト更新
+      const statusText = getBatchStatusText(status);
+      document.getElementById('batch-progress-status').textContent = statusText;
+      
+      // ファイル別進捗リスト更新
+      updateBatchFileList(status.files);
+      
+      // ボタン状態更新
+      updateBatchButtons(status.status);
+      
+      // 現在のバッチ状態を保存
+      currentBatch.status = status.status;
+    }
+    
+    /**
+     * バッチステータステキスト取得
+     */
+    function getBatchStatusText(status) {
+      switch (status.status) {
+        case 'processing':
+          return `処理中... (${status.processedFiles}/${status.totalFiles} ファイル)`;
+        case 'paused':
+          return `一時停止中 (${status.processedFiles}/${status.totalFiles} ファイル)`;
+        case 'completed':
+          return `完了 - 成功: ${status.completedFiles}件, 失敗: ${status.failedFiles}件`;
+        case 'failed':
+          return 'バッチ処理でエラーが発生しました';
+        default:
+          return '処理中...';
+      }
+    }
+    
+    /**
+     * ファイル別進捗リスト更新
+     */
+    function updateBatchFileList(files) {
+      const container = document.getElementById('batch-file-list');
+      
+      if (!files || files.length === 0) {
+        container.innerHTML = '<p class="help-text">ファイル情報を読み込み中...</p>';
+        return;
+      }
+      
+      container.innerHTML = files.map(file => {
+        const statusClass = getBatchFileStatusClass(file.status);
+        const statusIcon = getBatchFileStatusIcon(file.status);
+        const fileTypeIcon = getFileTypeIcon(file.fileType);
+        
+        return `
+          <div class="batch-file-item">
+            <span class="material-icons batch-file-icon">${fileTypeIcon}</span>
+            <div class="batch-file-info">
+              <div class="batch-file-name">${file.fileName}</div>
+              <div class="batch-file-url">${file.index + 1}番目のファイル</div>
+            </div>
+            <div class="batch-file-status">
+              <span class="material-icons ${statusClass}" style="font-size: 18px;">${statusIcon}</span>
+              <span class="${statusClass}">${getBatchFileStatusText(file.status)}</span>
+              ${file.targetFileUrl ? `<a href="${file.targetFileUrl}" target="_blank" class="result-link"><span class="material-icons" style="font-size: 16px;">open_in_new</span></a>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+    
+    /**
+     * ファイルステータスのCSSクラス取得
+     */
+    function getBatchFileStatusClass(status) {
+      switch (status) {
+        case 'pending': return 'batch-status-pending';
+        case 'processing': return 'batch-status-processing';
+        case 'completed': return 'batch-status-completed';
+        case 'failed': return 'batch-status-failed';
+        case 'retrying': return 'batch-status-processing';
+        default: return 'batch-status-pending';
+      }
+    }
+    
+    /**
+     * ファイルステータスのアイコン取得
+     */
+    function getBatchFileStatusIcon(status) {
+      switch (status) {
+        case 'pending': return 'schedule';
+        case 'processing': return 'refresh';
+        case 'completed': return 'check_circle';
+        case 'failed': return 'error';
+        case 'retrying': return 'replay';
+        default: return 'schedule';
+      }
+    }
+    
+    /**
+     * ファイルステータステキスト取得
+     */
+    function getBatchFileStatusText(status) {
+      switch (status) {
+        case 'pending': return '待機中';
+        case 'processing': return '処理中';
+        case 'completed': return '完了';
+        case 'failed': return '失敗';
+        case 'retrying': return '再試行';
+        default: return '不明';
+      }
+    }
+    
+    /**
+     * バッチ制御ボタンの状態更新
+     */
+    function updateBatchButtons(status) {
+      const pauseBtn = document.getElementById('batch-pause-btn');
+      const resumeBtn = document.getElementById('batch-resume-btn');
+      
+      if (status === 'processing') {
+        pauseBtn.style.display = 'inline-flex';
+        resumeBtn.style.display = 'none';
+      } else if (status === 'paused') {
+        pauseBtn.style.display = 'none';
+        resumeBtn.style.display = 'inline-flex';
+      } else {
+        pauseBtn.style.display = 'none';
+        resumeBtn.style.display = 'none';
+      }
+    }
+    
+    /**
+     * バッチ処理完了時の処理
+     */
+    function onBatchCompleted(status) {
+      const message = status.status === 'completed' 
+        ? `バッチ処理が完了しました！\n成功: ${status.completedFiles}件\n失敗: ${status.failedFiles}件`
+        : 'バッチ処理でエラーが発生しました';
+      
+      showToast(message, status.status === 'completed' ? 'success' : 'error');
+      
+      // バッチ履歴を更新
+      setTimeout(() => {
+        loadBatchHistory();
+      }, 1000);
+      
+      // 現在のバッチ情報をクリア
+      currentBatch = {
+        id: null,
+        status: null,
+        monitoringInterval: null,
+        startTime: null
+      };
+    }
+    
+    // --- バッチ制御関数 ---
+    
+    /**
+     * バッチ処理一時停止
+     */
+    function pauseBatch() {
+      if (!currentBatch.id) return;
+      
+      google.script.run
+        .withSuccessHandler(result => {
+          if (result.status === 'error') {
+            showToast(result.message, 'error');
+            return;
+          }
+          
+          showToast('バッチ処理を一時停止しました', 'success');
+          stopBatchMonitoring();
+        })
+        .withFailureHandler(error => {
+          showToast('一時停止に失敗しました: ' + error.message, 'error');
+        })
+        .pauseBatch(currentBatch.id);
+    }
+    
+    /**
+     * バッチ処理再開
+     */
+    function resumeBatch() {
+      if (!currentBatch.id) return;
+      
+      google.script.run
+        .withSuccessHandler(result => {
+          if (result.status === 'error') {
+            showToast(result.message, 'error');
+            return;
+          }
+          
+          showToast('バッチ処理を再開しました', 'success');
+          currentBatch.status = 'processing';
+          startBatchMonitoring();
+        })
+        .withFailureHandler(error => {
+          showToast('再開に失敗しました: ' + error.message, 'error');
+        })
+        .resumeBatch(currentBatch.id);
+    }
+    
+    /**
+     * バッチ処理キャンセル
+     */
+    function cancelBatch() {
+      if (!currentBatch.id) return;
+      
+      if (!confirm('バッチ処理をキャンセルしますか？\n処理中のファイルは完了まで継続されます。')) {
+        return;
+      }
+      
+      stopBatchMonitoring();
+      
+      // UIをリセット
+      document.getElementById('batch-monitor').style.display = 'none';
+      resetBatchForm();
+      
+      currentBatch = {
+        id: null,
+        status: null,
+        monitoringInterval: null,
+        startTime: null
+      };
+      
+      showToast('バッチ処理をキャンセルしました', 'success');
+    }
+    
+    // --- URL検証関数 ---
+    
+    /**
+     * バッチURLの検証処理
+     */
+    function validateBatchUrls() {
+      const urlsText = document.getElementById('batch-urls').value.trim();
+      
+      if (!urlsText) {
+        showToast('URLを入力してください', 'error');
+        return;
+      }
+      
+      const fileUrls = urlsText.split('\n')
+        .map(url => url.trim())
+        .filter(url => url.length > 0);
+      
+      if (fileUrls.length === 0) {
+        showToast('有効なURLが入力されていません', 'error');
+        return;
+      }
+      
+      // 検証結果を表示
+      const validUrls = [];
+      const invalidUrls = [];
+      
+      fileUrls.forEach((url, index) => {
+        if (isValidGoogleDriveUrl(url)) {
+          validUrls.push({ index: index + 1, url: url });
+        } else {
+          invalidUrls.push({ index: index + 1, url: url, error: '無効なGoogle DriveのURL' });
+        }
+      });
+      
+      showValidationResult({ validUrls, invalidUrls }, 'validation');
+    }
+    
+    /**
+     * URL検証結果の表示
+     */
+    function showValidationResult(data, type) {
+      // 既存の検証結果を削除
+      const existing = document.querySelector('.batch-validation-result');
+      if (existing) {
+        existing.remove();
+      }
+      
+      const resultDiv = document.createElement('div');
+      resultDiv.className = `batch-validation-result batch-validation-${type}`;
+      
+      if (type === 'validation') {
+        const { validUrls, invalidUrls } = data;
+        resultDiv.innerHTML = `
+          <h4 style="margin: 0 0 10px 0;">URL検証結果</h4>
+          <p><strong>有効なURL:</strong> ${validUrls.length}件</p>
+          <p><strong>無効なURL:</strong> ${invalidUrls.length}件</p>
+          ${invalidUrls.length > 0 ? `
+            <div style="margin-top: 10px;">
+              <strong>無効なURL一覧:</strong>
+              ${invalidUrls.map(item => `
+                <div class="url-validation-item">
+                  <span class="material-icons url-validation-icon" style="color: #f44336;">error</span>
+                  <span class="url-validation-text">${item.index}行目: ${item.error}</span>
+                </div>
+              `).join('')}
+            </div>
+          ` : ''}
+        `;
+      } else if (type === 'error' && Array.isArray(data)) {
+        resultDiv.innerHTML = `
+          <h4 style="margin: 0 0 10px 0;">ファイル取得エラー</h4>
+          <p><strong>エラー件数:</strong> ${data.length}件</p>
+          <div style="margin-top: 10px;">
+            ${data.map(item => `
+              <div class="url-validation-item">
+                <span class="material-icons url-validation-icon" style="color: #f44336;">error</span>
+                <span class="url-validation-text">${item.index + 1}番目: ${item.error}</span>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
+      
+      // フォームの後に挿入
+      const form = document.getElementById('batch-form');
+      form.parentNode.insertBefore(resultDiv, form.nextSibling);
+    }
+    
+    /**
+     * Google DriveのURLかどうかを簡易チェック
+     */
+    function isValidGoogleDriveUrl(url) {
+      try {
+        const urlObj = new URL(url);
+        return urlObj.hostname === 'docs.google.com' && 
+               (url.includes('/spreadsheets/d/') || 
+                url.includes('/document/d/') || 
+                url.includes('/presentation/d/'));
+      } catch {
+        return false;
+      }
+    }
+    
+    // --- バッチ履歴関数 ---
+    
+    /**
+     * バッチ履歴を読み込み
+     */
+    function loadBatchHistory() {
+      const container = document.getElementById('batch-history-content');
+      container.innerHTML = '<div class="empty-state"><div class="material-icons empty-state-icon">hourglass_empty</div><p>読み込み中...</p></div>';
+      
+      google.script.run
+        .withSuccessHandler(history => {
+          batchHistoryData = history || [];
+          displayBatchHistory(batchHistoryData);
+        })
+        .withFailureHandler(error => {
+          showToast('バッチ履歴の読み込みに失敗しました', 'error');
+          console.error(error);
+        })
+        .getBatchHistory(20); // 最新20件を取得
+    }
+    
+    /**
+     * バッチ履歴を更新
+     */
+    function refreshBatchHistory() {
+      loadBatchHistory();
+    }
+    
+    /**
+     * バッチ履歴表示
+     */
+    function displayBatchHistory(history) {
+      const container = document.getElementById('batch-history-content');
+      
+      if (!history || history.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="material-icons empty-state-icon">folder_open</div><p>バッチ処理履歴がありません</p></div>';
+        return;
+      }
+      
+      container.innerHTML = history.map(batch => {
+        const startDate = new Date(batch.createdAt);
+        const dateStr = startDate.toLocaleDateString('ja-JP') + ' ' + startDate.toLocaleTimeString('ja-JP');
+        const statusIcon = getBatchHistoryIcon(batch.status);
+        const canResume = batch.status === 'paused' || (batch.status === 'processing' && batch.completedFiles < batch.totalFiles);
+        
+        return `
+          <div class="batch-history-item" onclick="showBatchDetail('${batch.batchId}')">
+            <div class="batch-history-icon ${batch.status}">
+              <span class="material-icons">${statusIcon}</span>
+            </div>
+            <div class="batch-history-info">
+              <div class="batch-history-name">${batch.batchName || 'バッチ処理'}</div>
+              <div class="batch-history-details">
+                ${getLanguageName(batch.targetLang)} | ${batch.dictName ? `辞書: ${batch.dictName}` : '辞書なし'}
+              </div>
+              <div class="batch-history-stats">
+                ${dateStr} | ${batch.completedFiles}/${batch.totalFiles}ファイル完了
+              </div>
+            </div>
+            <div class="batch-history-actions">
+              ${canResume ? `<button class="icon-button" onclick="event.stopPropagation(); resumeBatchFromHistory('${batch.batchId}')" title="再開"><span class="material-icons">play_arrow</span></button>` : ''}
+              <button class="icon-button" onclick="event.stopPropagation(); showBatchDetail('${batch.batchId}')" title="詳細"><span class="material-icons">info</span></button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+    
+    /**
+     * バッチ履歴のアイコン取得
+     */
+    function getBatchHistoryIcon(status) {
+      switch (status) {
+        case 'completed': return 'check_circle';
+        case 'failed': return 'error';
+        case 'processing': return 'refresh';
+        case 'paused': return 'pause';
+        default: return 'schedule';
+      }
+    }
+    
+    /**
+     * バッチ詳細表示
+     */
+    function showBatchDetail(batchId) {
+      google.script.run
+        .withSuccessHandler(detail => {
+          if (detail.status === 'error') {
+            showToast('バッチ詳細の取得に失敗しました', 'error');
+            return;
+          }
+          
+          displayBatchDetailModal(detail);
+        })
+        .withFailureHandler(error => {
+          showToast('バッチ詳細の取得に失敗しました', 'error');
+          console.error(error);
+        })
+        .getBatchStatus(batchId);
+    }
+    
+    /**
+     * バッチ詳細モーダル表示
+     */
+    function displayBatchDetailModal(detail) {
+      const modal = document.getElementById('batch-detail-modal');
+      const title = document.getElementById('batch-detail-title');
+      const content = document.getElementById('batch-detail-content');
+      const resumeBtn = document.getElementById('batch-resume-from-modal');
+      
+      title.textContent = `${detail.batchName || 'バッチ処理'} - 詳細`;
+      
+      const startDate = new Date(detail.lastUpdated);
+      const dateStr = startDate.toLocaleDateString('ja-JP') + ' ' + startDate.toLocaleTimeString('ja-JP');
+      
+      content.innerHTML = `
+        <div class="stats-grid" style="margin-bottom: 20px;">
+          <div class="stat-card">
+            <div class="stat-value">${detail.progress}%</div>
+            <div class="stat-label">進捗</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">${detail.completedFiles}</div>
+            <div class="stat-label">完了ファイル</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">${detail.failedFiles}</div>
+            <div class="stat-label">失敗ファイル</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">${Math.floor(detail.elapsedTime / 60)}分</div>
+            <div class="stat-label">経過時間</div>
+          </div>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+          <h4>設定情報</h4>
+          <p><strong>翻訳先言語:</strong> ${getLanguageName(detail.targetLang)}</p>
+          <p><strong>使用辞書:</strong> ${detail.dictName || 'なし'}</p>
+          <p><strong>最終更新:</strong> ${dateStr}</p>
+          <p><strong>ステータス:</strong> ${getStatusBadge(detail.status)}</p>
+        </div>
+        
+        <div>
+          <h4>ファイル一覧</h4>
+          <div style="max-height: 300px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 4px;">
+            ${detail.files.map(file => `
+              <div class="batch-file-item" style="margin: 0; border: none; border-bottom: 1px solid #e0e0e0;">
+                <span class="material-icons batch-file-icon">${getFileTypeIcon(file.fileType)}</span>
+                <div class="batch-file-info">
+                  <div class="batch-file-name">${file.fileName}</div>
+                  <div class="batch-file-url">${file.index + 1}番目のファイル</div>
+                </div>
+                <div class="batch-file-status">
+                  <span class="material-icons ${getBatchFileStatusClass(file.status)}" style="font-size: 18px;">
+                    ${getBatchFileStatusIcon(file.status)}
+                  </span>
+                  <span class="${getBatchFileStatusClass(file.status)}">${getBatchFileStatusText(file.status)}</span>
+                  ${file.targetFileUrl ? `<a href="${file.targetFileUrl}" target="_blank" class="result-link"><span class="material-icons" style="font-size: 16px;">open_in_new</span></a>` : ''}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+      
+      // 再開ボタンの表示制御
+      const canResume = detail.status === 'paused' || (detail.status === 'processing' && detail.completedFiles < detail.totalFiles);
+      resumeBtn.style.display = canResume ? 'inline-flex' : 'none';
+      resumeBtn.setAttribute('data-batch-id', detail.batchId);
+      
+      modal.style.display = 'block';
+    }
+    
+    /**
+     * 履歴からバッチを再開
+     */
+    function resumeBatchFromHistory(batchId) {
+      currentBatch.id = batchId;
+      resumeBatch();
+    }
+    
+    /**
+     * モーダルからバッチを再開
+     */
+    function resumeBatchFromModal() {
+      const batchId = document.getElementById('batch-resume-from-modal').getAttribute('data-batch-id');
+      if (batchId) {
+        hideBatchDetailModal();
+        currentBatch.id = batchId;
+        resumeBatch();
+        
+        // バッチタブに切り替え
+        switchTab('batch');
+        document.getElementById('batch-monitor').style.display = 'block';
+      }
+    }
+    
+    // --- その他のヘルパー関数 ---
+    
+    /**
+     * バッチフォームのリセット
+     */
+    function resetBatchForm() {
+      document.getElementById('batch-form').reset();
+      
+      // 検証結果を削除
+      const existing = document.querySelector('.batch-validation-result');
+      if (existing) {
+        existing.remove();
+      }
+      
+      // 監視セクションを非表示
+      document.getElementById('batch-monitor').style.display = 'none';
+      
+      validationResults = null;
+    }
+    
+    /**
+     * バッチ詳細モーダルを非表示
+     */
+    function hideBatchDetailModal() {
+      document.getElementById('batch-detail-modal').style.display = 'none';
+    }
 
   </script>
 </body>

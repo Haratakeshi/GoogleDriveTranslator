@@ -8,6 +8,7 @@ class History {
     this.spreadsheetId = CONFIG.HISTORY_SHEET_ID;
     this.spreadsheet = null;
     this.sheet = null;
+    this.batchHistory = null;
     this.initSpreadsheet();
   }
   
@@ -18,6 +19,7 @@ class History {
     try {
       this.spreadsheet = SpreadsheetApp.openById(this.spreadsheetId);
       this.sheet = this.getOrCreateHistorySheet();
+      this.batchHistory = new BatchHistory();
     } catch (error) {
       log('ERROR', '履歴スプレッドシートの初期化エラー', error);
       throw new Error('履歴スプレッドシートにアクセスできません');
@@ -149,6 +151,26 @@ class History {
       ];
       
       this.sheet.appendRow(row);
+      
+      // バッチ処理の場合はファイル履歴も記録
+      if (data.batchId) {
+        this.recordBatchFileJob({
+          batchId: data.batchId,
+          sourceUrl: data.sourceUrl,
+          targetUrl: data.targetUrl,
+          fileName: fileName,
+          fileType: fileType,
+          status: data.status,
+          charCount: data.charCountSource,
+          startTime: data.startTime,
+          completedTime: data.completedTime,
+          errorMessage: data.errorMessage,
+          resumeToken: data.resumeToken,
+          duration: data.duration,
+          apiCost: parseFloat(estimatedCost),
+          retryCount: data.retryCount || 0
+        });
+      }
       
       // 条件付き書式を適用
       this.applyConditionalFormatting();
@@ -687,5 +709,273 @@ class History {
     sheet.setFrozenRows(1);
     
     return sheet;
+  }
+  
+  // ==============================================
+  // バッチ処理関連メソッド
+  // ==============================================
+  
+  /**
+   * バッチ履歴インスタンスを取得
+   * @return {BatchHistory} バッチ履歴インスタンス
+   */
+  getBatchHistory() {
+    if (!this.batchHistory) {
+      this.batchHistory = new BatchHistory();
+    }
+    return this.batchHistory;
+  }
+  
+  /**
+   * 新しいバッチを作成
+   * @param {Object} batchData - バッチデータ
+   * @return {string} 作成したバッチID
+   */
+  createBatch(batchData) {
+    return this.getBatchHistory().createBatch(batchData);
+  }
+  
+  /**
+   * バッチ情報を更新
+   * @param {string} batchId - バッチID
+   * @param {Object} updateData - 更新データ
+   * @return {boolean} 更新成功かどうか
+   */
+  updateBatch(batchId, updateData) {
+    return this.getBatchHistory().updateBatch(batchId, updateData);
+  }
+  
+  /**
+   * バッチのファイル処理記録を追加
+   * @param {Object} fileData - ファイルデータ
+   * @return {string} 作成したジョブID
+   */
+  recordBatchFileJob(fileData) {
+    return this.getBatchHistory().recordFileJob(fileData);
+  }
+  
+  /**
+   * バッチのファイル処理状況を更新
+   * @param {string} jobId - ジョブID
+   * @param {Object} updateData - 更新データ
+   * @return {boolean} 更新成功かどうか
+   */
+  updateBatchFileJob(jobId, updateData) {
+    return this.getBatchHistory().updateFileJob(jobId, updateData);
+  }
+  
+  /**
+   * バッチの再開情報を保存
+   * @param {string} batchId - バッチID
+   * @param {Object} resumeData - 再開データ
+   * @return {boolean} 保存成功かどうか
+   */
+  saveBatchResumeInfo(batchId, resumeData) {
+    return this.getBatchHistory().saveResumeInfo(batchId, resumeData);
+  }
+  
+  /**
+   * バッチの再開情報を取得
+   * @param {string} batchId - バッチID
+   * @return {Object|null} 再開情報
+   */
+  getBatchResumeInfo(batchId) {
+    return this.getBatchHistory().getResumeInfo(batchId);
+  }
+  
+  /**
+   * バッチ履歴一覧を取得
+   * @param {Object} options - 取得オプション
+   * @return {Array} バッチ履歴の配列
+   */
+  getBatchHistoryList(options = {}) {
+    return this.getBatchHistory().getBatchHistory(options);
+  }
+  
+  /**
+   * バッチのファイル履歴を取得
+   * @param {string} batchId - バッチID
+   * @return {Array} ファイル履歴の配列
+   */
+  getBatchFileHistoryList(batchId) {
+    return this.getBatchHistory().getBatchFileHistory(batchId);
+  }
+  
+  /**
+   * バッチ統計情報を取得
+   * @param {string} batchId - バッチID（省略時は全体統計）
+   * @return {Object} 統計情報
+   */
+  getBatchStatistics(batchId = null) {
+    return this.getBatchHistory().getBatchStatistics(batchId);
+  }
+  
+  /**
+   * 複合統計情報を取得（個別履歴とバッチ履歴の統合）
+   * @param {string} period - 期間（today, week, month, all）
+   * @return {Object} 統合統計情報
+   */
+  getCombinedStatistics(period = 'all') {
+    try {
+      const individualStats = this.getStatistics(period);
+      const batchStats = this.getBatchStatistics();
+      
+      return {
+        individual: individualStats,
+        batch: batchStats,
+        combined: {
+          totalTranslations: individualStats.totalTranslations + batchStats.totalFiles,
+          totalBatches: batchStats.totalBatches,
+          totalSourceChars: individualStats.totalSourceChars + batchStats.totalSourceChars,
+          totalTargetChars: individualStats.totalTargetChars + batchStats.totalTargetChars,
+          totalDuration: individualStats.totalDuration + batchStats.totalDuration,
+          totalApiCost: individualStats.totalApiCost + batchStats.totalApiCost,
+          successRate: batchStats.totalFiles > 0 ? 
+            Math.round(((individualStats.successCount + batchStats.completedFiles) / 
+                       (individualStats.totalTranslations + batchStats.totalFiles)) * 100) : 
+            individualStats.successCount > 0 ? 
+              Math.round((individualStats.successCount / individualStats.totalTranslations) * 100) : 0
+        },
+        period: period,
+        generatedAt: new Date()
+      };
+      
+    } catch (error) {
+      log('ERROR', '複合統計取得エラー', error);
+      return {
+        individual: this.getEmptyStatistics(period),
+        batch: this.getBatchHistory().getEmptyBatchStatistics(),
+        combined: {
+          totalTranslations: 0,
+          totalBatches: 0,
+          totalSourceChars: 0,
+          totalTargetChars: 0,
+          totalDuration: 0,
+          totalApiCost: 0,
+          successRate: 0
+        },
+        period: period,
+        generatedAt: new Date()
+      };
+    }
+  }
+  
+  /**
+   * バッチ処理の進行状況を更新
+   * @param {string} batchId - バッチID
+   * @param {number} completedFiles - 完了ファイル数
+   * @param {number} failedFiles - 失敗ファイル数
+   * @param {Object} additionalData - 追加データ（オプション）
+   * @return {boolean} 更新成功かどうか
+   */
+  updateBatchProgress(batchId, completedFiles, failedFiles, additionalData = {}) {
+    try {
+      const updateData = {
+        completedFiles: completedFiles,
+        failedFiles: failedFiles,
+        ...additionalData
+      };
+      
+      // 進行状況に応じてステータスを自動更新
+      const batchInfo = this.getBatchHistoryList({ limit: 1 }).find(b => b.batchId === batchId);
+      if (batchInfo) {
+        const totalFiles = batchInfo.totalFiles;
+        const processedFiles = completedFiles + failedFiles;
+        
+        if (processedFiles >= totalFiles) {
+          updateData.status = failedFiles === 0 ? 'completed' : 
+                             completedFiles === 0 ? 'failed' : 'completed';
+        } else if (processedFiles > 0) {
+          updateData.status = 'processing';
+        }
+      }
+      
+      return this.updateBatch(batchId, updateData);
+      
+    } catch (error) {
+      log('ERROR', 'バッチ進行状況更新エラー', error);
+      return false;
+    }
+  }
+  
+  /**
+   * 期限切れの再開情報をクリーンアップ
+   * @return {number} クリーンアップした件数
+   */
+  cleanupExpiredResumeInfo() {
+    return this.getBatchHistory().cleanupExpiredResumeInfo();
+  }
+  
+  /**
+   * バッチ処理が中断可能かチェック
+   * @param {string} batchId - バッチID
+   * @return {boolean} 中断可能かどうか
+   */
+  canPauseBatch(batchId) {
+    try {
+      const batchInfo = this.getBatchHistoryList({ limit: 1000 }).find(b => b.batchId === batchId);
+      return batchInfo && ['processing', 'pending'].includes(batchInfo.status);
+    } catch (error) {
+      log('ERROR', 'バッチ中断可能性チェックエラー', error);
+      return false;
+    }
+  }
+  
+  /**
+   * バッチ処理を一時停止
+   * @param {string} batchId - バッチID
+   * @param {Object} resumeData - 再開データ
+   * @return {boolean} 一時停止成功かどうか
+   */
+  pauseBatch(batchId, resumeData = {}) {
+    try {
+      if (!this.canPauseBatch(batchId)) {
+        return false;
+      }
+      
+      // バッチステータスを一時停止に更新
+      const updateSuccess = this.updateBatch(batchId, { status: 'paused' });
+      
+      if (updateSuccess) {
+        // 再開情報を保存
+        this.saveBatchResumeInfo(batchId, resumeData);
+        log('INFO', `バッチを一時停止しました: ${batchId}`);
+      }
+      
+      return updateSuccess;
+      
+    } catch (error) {
+      log('ERROR', 'バッチ一時停止エラー', error);
+      return false;
+    }
+  }
+  
+  /**
+   * バッチ処理を再開
+   * @param {string} batchId - バッチID
+   * @return {Object|null} 再開データ
+   */
+  resumeBatch(batchId) {
+    try {
+      const resumeInfo = this.getBatchResumeInfo(batchId);
+      if (!resumeInfo) {
+        log('WARN', `再開情報が見つかりません: ${batchId}`);
+        return null;
+      }
+      
+      // バッチステータスを処理中に更新
+      const updateSuccess = this.updateBatch(batchId, { status: 'processing' });
+      
+      if (updateSuccess) {
+        log('INFO', `バッチを再開しました: ${batchId}`);
+        return resumeInfo.resumeData;
+      }
+      
+      return null;
+      
+    } catch (error) {
+      log('ERROR', 'バッチ再開エラー', error);
+      return null;
+    }
   }
 }

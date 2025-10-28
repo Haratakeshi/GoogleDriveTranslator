@@ -511,13 +511,813 @@ function getSystemInfo() {
 }
 
 /**
- * テスト用関数（開発時のみ使用）
+ * 単一ファイル翻訳のテスト用関数（開発時のみ使用）
  */
-function testTranslation() {
+function testSingleFileTranslation() {
   // テスト用のダミーURL
   const testUrl = 'https://docs.google.com/spreadsheets/d/YOUR_TEST_FILE_ID/edit';
-  const result = translateFile(testUrl, 'en', '');
-  console.log(result);
+  const result = setupTranslationQueue(testUrl, 'en', '');
+  console.log('単一ファイル翻訳テスト結果:', result);
+  return result;
+}
+
+/**
+ * バッチ処理のテスト用関数（開発時のみ使用）
+ */
+function testBatchTranslation() {
+  // テスト用のダミーURL配列
+  const testUrls = [
+    'https://docs.google.com/spreadsheets/d/YOUR_TEST_FILE_ID_1/edit',
+    'https://docs.google.com/document/d/YOUR_TEST_FILE_ID_2/edit'
+  ];
+  
+  const setupResult = setupBatchTranslation(testUrls, 'en', '', 'テストバッチ');
+  console.log('バッチ翻訳セットアップテスト結果:', setupResult);
+  
+  if (setupResult.batchId) {
+    const startResult = startBatchTranslation(setupResult.batchId);
+    console.log('バッチ翻訳開始テスト結果:', startResult);
+    
+    const statusResult = getBatchProgress(setupResult.batchId);
+    console.log('バッチ進行状況テスト結果:', statusResult);
+  }
+  
+  return setupResult;
+}
+
+/**
+ * 既存機能との互換性テスト用関数（開発時のみ使用）
+ */
+function testCompatibility() {
+  console.log('=== 既存機能との互換性テスト開始 ===');
+  
+  const results = {
+    singleFileTranslation: null,
+    batchTranslation: null,
+    dictionaryFunctions: null,
+    historyFunctions: null,
+    systemInfo: null
+  };
+  
+  try {
+    // 1. 単一ファイル翻訳機能のテスト
+    console.log('1. 単一ファイル翻訳機能のテスト');
+    results.singleFileTranslation = {
+      setupQueue: typeof setupTranslationQueue === 'function',
+      processNext: typeof processNextInQueue === 'function',
+      getProgress: typeof getTranslationProgress === 'function'
+    };
+    console.log('単一ファイル翻訳機能:', results.singleFileTranslation);
+    
+    // 2. バッチ翻訳機能のテスト
+    console.log('2. バッチ翻訳機能のテスト');
+    results.batchTranslation = {
+      setupBatch: typeof setupBatchTranslation === 'function',
+      startBatch: typeof startBatchTranslation === 'function',
+      processNextInBatch: typeof processNextInBatch === 'function',
+      getBatchProgress: typeof getBatchProgress === 'function',
+      pauseBatch: typeof pauseBatchTranslation === 'function',
+      resumeBatch: typeof resumeBatchTranslation === 'function'
+    };
+    console.log('バッチ翻訳機能:', results.batchTranslation);
+    
+    // 3. 辞書機能のテスト
+    console.log('3. 辞書機能のテスト');
+    results.dictionaryFunctions = {
+      getDictionaryList: typeof getDictionaryList === 'function',
+      createDictionary: typeof createDictionary === 'function',
+      exportDictionary: typeof exportDictionary === 'function',
+      importDictionary: typeof importDictionary === 'function'
+    };
+    console.log('辞書機能:', results.dictionaryFunctions);
+    
+    // 4. 履歴機能のテスト
+    console.log('4. 履歴機能のテスト');
+    results.historyFunctions = {
+      getTranslationHistory: typeof getTranslationHistory === 'function',
+      getBatchHistory: typeof getBatchHistory === 'function',
+      getBatchFileHistory: typeof getBatchFileHistory === 'function',
+      getBatchStatistics: typeof getBatchStatistics === 'function'
+    };
+    console.log('履歴機能:', results.historyFunctions);
+    
+    // 5. システム情報のテスト
+    console.log('5. システム情報のテスト');
+    const systemInfo = getSystemInfo();
+    results.systemInfo = {
+      hasApiKey: systemInfo ? systemInfo.hasApiKey : false,
+      hasHistorySheet: systemInfo ? !!systemInfo.historySheetId : false,
+      hasDictionarySheet: systemInfo ? !!systemInfo.dictionarySheetId : false,
+      supportedLanguages: systemInfo ? systemInfo.supportedLanguages : 0
+    };
+    console.log('システム情報:', results.systemInfo);
+    
+    // 6. クラスのインスタンス化テスト
+    console.log('6. クラスのインスタンス化テスト');
+    try {
+      const batchManager = new BatchTranslationManager();
+      const queueManager = new QueueManager();
+      const batchHistory = new BatchHistory();
+      console.log('クラスインスタンス化: 成功');
+      results.classInstantiation = true;
+    } catch (error) {
+      console.error('クラスインスタンス化エラー:', error);
+      results.classInstantiation = false;
+    }
+    
+    console.log('=== 互換性テスト完了 ===');
+    console.log('テスト結果サマリー:', results);
+    
+    return results;
+    
+  } catch (error) {
+    console.error('互換性テスト中にエラーが発生:', error);
+    return { error: error.message, results: results };
+  }
+}
+
+/**
+ * バッチ処理システムの総合テスト（開発時のみ使用）
+ */
+function testBatchSystem() {
+  console.log('=== バッチ処理システム総合テスト開始 ===');
+  
+  try {
+    // 1. 互換性テスト
+    console.log('1. 互換性テスト実行中...');
+    const compatibilityResult = testCompatibility();
+    
+    // 2. バッチマネージャーのテスト
+    console.log('2. バッチマネージャーテスト実行中...');
+    const batchManager = new BatchTranslationManager();
+    console.log('バッチマネージャー作成: 成功');
+    
+    // 3. キューマネージャーのテスト
+    console.log('3. キューマネージャーテスト実行中...');
+    const queueManager = new QueueManager();
+    const queueInit = queueManager.initializeQueue();
+    console.log('キューマネージャー初期化:', queueInit.status);
+    
+    // 4. バッチ履歴のテスト
+    console.log('4. バッチ履歴テスト実行中...');
+    const batchHistory = new BatchHistory();
+    const historyStats = batchHistory.getBatchStatistics();
+    console.log('バッチ履歴統計取得: 成功');
+    
+    // 5. 設定値の確認
+    console.log('5. 設定値確認中...');
+    const configTest = {
+      maxBatchSize: CONFIG.BATCH_PROCESSING.MAX_BATCH_SIZE,
+      maxRetryAttempts: CONFIG.BATCH_PROCESSING.MAX_RETRY_ATTEMPTS,
+      parallelLimit: CONFIG.BATCH_PROCESSING.PARALLEL_PROCESSING_LIMIT,
+      resumeTokenExpiry: CONFIG.BATCH_PROCESSING.RESUME_TOKEN_EXPIRY
+    };
+    console.log('バッチ処理設定:', configTest);
+    
+    console.log('=== バッチ処理システム総合テスト完了 ===');
+    
+    return {
+      status: 'success',
+      compatibility: compatibilityResult,
+      configTest: configTest,
+      message: 'すべてのテストが正常に完了しました'
+    };
+    
+  } catch (error) {
+    console.error('バッチ処理システムテスト中にエラーが発生:', error);
+    return {
+      status: 'error',
+      error: error.message,
+      stack: error.stack
+    };
+  }
+}
+
+// === バッチ処理API関数 ===
+
+/**
+ * バッチ翻訳をセットアップする（クライアントから呼び出される）
+ * @param {Array} fileUrls - ファイルURLの配列
+ * @param {string} targetLang - 翻訳先言語コード
+ * @param {string} dictName - 使用する辞書名（オプション）
+ * @param {string} batchName - バッチ名（オプション）
+ * @return {Object} バッチ情報
+ */
+function setupBatchTranslation(fileUrls, targetLang, dictName = '', batchName = '') {
+  log('INFO', `バッチ翻訳セットアップ開始: ${fileUrls.length}ファイル, 言語=${targetLang}, 辞書=${dictName}`);
+
+  try {
+    if (!fileUrls || !Array.isArray(fileUrls) || fileUrls.length === 0) {
+      throw new Error('ファイルURLの配列が必要です');
+    }
+
+    if (fileUrls.length > CONFIG.BATCH_PROCESSING.MAX_BATCH_SIZE) {
+      throw new Error(`バッチサイズが上限を超えています（最大${CONFIG.BATCH_PROCESSING.MAX_BATCH_SIZE}ファイル）`);
+    }
+
+    if (!targetLang || !CONFIG.SUPPORTED_LANGUAGES[targetLang]) {
+      throw new Error('有効な翻訳先言語を指定してください');
+    }
+
+    const batchManager = new BatchTranslationManager();
+    const result = batchManager.createBatch(fileUrls, targetLang, dictName, batchName);
+
+    if (result.error) {
+      throw new Error(result.error);
+    }
+
+    log('INFO', `バッチ翻訳セットアップ完了: バッチID=${result.batchId}, 有効ファイル=${result.validFiles}件`);
+
+    return result;
+
+  } catch (error) {
+    log('ERROR', 'バッチ翻訳セットアップエラー', error);
+    return { error: error.message };
+  }
+}
+
+/**
+ * バッチ翻訳を開始する（クライアントから呼び出される）
+ * @param {string} batchId - バッチID
+ * @return {Object} 開始結果
+ */
+function startBatchTranslation(batchId) {
+  log('INFO', `バッチ翻訳開始: ${batchId}`);
+
+  try {
+    if (!batchId) {
+      throw new Error('バッチIDが必要です');
+    }
+
+    const batchManager = new BatchTranslationManager();
+    const result = batchManager.startBatch(batchId);
+
+    if (result.status === 'error') {
+      throw new Error(result.message);
+    }
+
+    log('INFO', `バッチ翻訳開始完了: ${batchId}`);
+
+    return result;
+
+  } catch (error) {
+    log('ERROR', 'バッチ翻訳開始エラー', error);
+    return { error: error.message };
+  }
+}
+
+/**
+ * バッチ内の次のファイルを処理する（クライアントから繰り返し呼び出される）
+ * @param {string} batchId - バッチID
+ * @return {Object} 処理結果
+ */
+function processNextInBatch(batchId) {
+  try {
+    if (!batchId) {
+      return { status: 'error', message: 'バッチIDが必要です' };
+    }
+
+    const batchManager = new BatchTranslationManager();
+    const result = batchManager.processNextFile(batchId);
+
+    // ファイル処理が開始された場合、実際の翻訳処理を行う
+    if (result.status === 'file_processing' && result.taskId) {
+      // 既存の processNextInQueue を使用して実際の翻訳を行う
+      const translationResult = processNextInQueue(result.taskId);
+      
+      if (translationResult.status === 'complete' || translationResult.status === 'error') {
+        // ファイル処理完了をバッチマネージャーに通知
+        const completionResult = batchManager.onFileCompleted(batchId, result.taskId, translationResult);
+        
+        // バッチ全体が完了した場合
+        if (completionResult.status === 'completed') {
+          return completionResult;
+        }
+        
+        // 個別ファイル完了の場合、次のファイル処理情報も含める
+        return {
+          ...completionResult,
+          continueProcessing: completionResult.remainingFiles > 0
+        };
+      }
+      
+      // 翻訳処理中の場合
+      return {
+        status: 'processing',
+        batchId: batchId,
+        fileName: result.fileName,
+        taskId: result.taskId,
+        completedJobs: translationResult.completedJobs || 0,
+        totalJobs: translationResult.totalJobs || result.totalJobs,
+        processedFiles: result.processedFiles,
+        totalFiles: result.totalFiles
+      };
+    }
+
+    return result;
+
+  } catch (error) {
+    log('ERROR', 'バッチファイル処理エラー', error);
+    return { status: 'error', message: error.message };
+  }
+}
+
+/**
+ * バッチ処理の進行状況を取得する（クライアントから呼び出される）
+ * @param {string} batchId - バッチID
+ * @return {Object} 進行状況情報
+ */
+function getBatchProgress(batchId) {
+  try {
+    if (!batchId) {
+      return { status: 'error', message: 'バッチIDが必要です' };
+    }
+
+    const batchManager = new BatchTranslationManager();
+    return batchManager.getBatchStatus(batchId);
+
+  } catch (error) {
+    log('ERROR', 'バッチ進行状況取得エラー', error);
+    return { status: 'error', message: error.message };
+  }
+}
+
+/**
+ * バッチ処理を一時停止する（クライアントから呼び出される）
+ * @param {string} batchId - バッチID
+ * @return {Object} 一時停止結果
+ */
+function pauseBatchTranslation(batchId) {
+  log('INFO', `バッチ翻訳一時停止: ${batchId}`);
+
+  try {
+    if (!batchId) {
+      throw new Error('バッチIDが必要です');
+    }
+
+    const batchManager = new BatchTranslationManager();
+    const result = batchManager.pauseBatch(batchId);
+
+    if (result.status === 'error') {
+      throw new Error(result.message);
+    }
+
+    log('INFO', `バッチ翻訳一時停止完了: ${batchId}`);
+
+    return result;
+
+  } catch (error) {
+    log('ERROR', 'バッチ翻訳一時停止エラー', error);
+    return { error: error.message };
+  }
+}
+
+/**
+ * バッチ処理を再開する（クライアントから呼び出される）
+ * @param {string} batchId - バッチID
+ * @return {Object} 再開結果
+ */
+function resumeBatchTranslation(batchId) {
+  log('INFO', `バッチ翻訳再開: ${batchId}`);
+
+  try {
+    if (!batchId) {
+      throw new Error('バッチIDが必要です');
+    }
+
+    const batchManager = new BatchTranslationManager();
+    const result = batchManager.resumeBatch(batchId);
+
+    if (result.status === 'error') {
+      throw new Error(result.message);
+    }
+
+    log('INFO', `バッチ翻訳再開完了: ${batchId}`);
+
+    return result;
+
+  } catch (error) {
+    log('ERROR', 'バッチ翻訳再開エラー', error);
+    return { error: error.message };
+  }
+}
+
+/**
+ * バッチ履歴を取得する（クライアントから呼び出される）
+ * @param {Object} options - 取得オプション
+ * @return {Array} バッチ履歴の配列
+ */
+function getBatchHistory(options = {}) {
+  try {
+    const batchHistory = new BatchHistory();
+    return batchHistory.getBatchHistory(options);
+
+  } catch (error) {
+    log('ERROR', 'バッチ履歴取得エラー', error);
+    return [];
+  }
+}
+
+/**
+ * バッチのファイル履歴を取得する（クライアントから呼び出される）
+ * @param {string} batchId - バッチID
+ * @return {Array} ファイル履歴の配列
+ */
+function getBatchFileHistory(batchId) {
+  try {
+    if (!batchId) {
+      return [];
+    }
+
+    const batchHistory = new BatchHistory();
+    return batchHistory.getBatchFileHistory(batchId);
+
+  } catch (error) {
+    log('ERROR', 'バッチファイル履歴取得エラー', error);
+    return [];
+  }
+}
+
+/**
+ * バッチ統計情報を取得する（クライアントから呼び出される）
+ * @param {string} batchId - バッチID（省略時は全体統計）
+ * @return {Object} 統計情報
+ */
+function getBatchStatistics(batchId = null) {
+  try {
+    const batchHistory = new BatchHistory();
+    return batchHistory.getBatchStatistics(batchId);
+
+  } catch (error) {
+    log('ERROR', 'バッチ統計取得エラー', error);
+    return {
+      totalBatches: 0,
+      completedBatches: 0,
+      failedBatches: 0,
+      processingBatches: 0,
+      totalFiles: 0,
+      completedFiles: 0,
+      failedFiles: 0
+    };
+  }
+}
+
+/**
+ * キュー統計情報を取得する（クライアントから呼び出される）
+ * @return {Object} キュー統計情報
+ */
+function getQueueStatistics() {
+  try {
+    const queueManager = new QueueManager();
+    return queueManager.getQueueStatistics();
+
+  } catch (error) {
+    log('ERROR', 'キュー統計取得エラー', error);
+    return {
+      totalTasks: 0,
+      queuedTasks: 0,
+      activeTasks: 0,
+      completedTasks: 0,
+      failedTasks: 0,
+      concurrencyUtilization: 0
+    };
+  }
+}
+
+/**
+ * 古いタスクとバッチデータをクリーンアップする（管理者用）
+ * @param {number} maxAgeHours - 最大保持時間（時間）
+ * @return {Object} クリーンアップ結果
+ */
+function cleanupOldBatchData(maxAgeHours = 24) {
+  log('INFO', `古いバッチデータのクリーンアップを開始: ${maxAgeHours}時間以上経過したデータ`);
+
+  try {
+    const results = {
+      queueCleaned: 0,
+      resumeInfoCleaned: 0,
+      totalCleaned: 0
+    };
+
+    // キューのクリーンアップ
+    try {
+      const queueManager = new QueueManager();
+      const queueResult = queueManager.cleanupOldTasks(maxAgeHours);
+      results.queueCleaned = queueResult.cleaned || 0;
+    } catch (error) {
+      log('WARN', 'キュークリーンアップでエラー', error);
+    }
+
+    // バッチ履歴の再開情報クリーンアップ
+    try {
+      const batchHistory = new BatchHistory();
+      const resumeResult = batchHistory.cleanupExpiredResumeInfo();
+      results.resumeInfoCleaned = resumeResult || 0;
+    } catch (error) {
+      log('WARN', '再開情報クリーンアップでエラー', error);
+    }
+
+    results.totalCleaned = results.queueCleaned + results.resumeInfoCleaned;
+
+    log('INFO', `バッチデータクリーンアップ完了: 合計${results.totalCleaned}件削除`);
+
+    return {
+      status: 'completed',
+      ...results,
+      message: `${results.totalCleaned}件のデータをクリーンアップしました`
+    };
+
+  } catch (error) {
+    log('ERROR', 'バッチデータクリーンアップエラー', error);
+    return {
+      status: 'error',
+      message: error.message
+    };
+  }
+}
+
+/**
+ * バッチ処理のヘルスチェックを実行する（クライアントから呼び出される）
+ * @param {string} batchId - バッチID
+ * @return {Object} ヘルスチェック結果
+ */
+function performBatchHealthCheck(batchId) {
+  try {
+    if (!batchId) {
+      return { status: 'error', message: 'バッチIDが必要です' };
+    }
+
+    const batchManager = new BatchTranslationManager();
+    return batchManager.performHealthCheck(batchId);
+
+  } catch (error) {
+    log('ERROR', 'バッチヘルスチェックエラー', error);
+    return {
+      status: 'error',
+      message: error.message
+    };
+  }
+}
+
+/**
+ * バッチ処理の自動回復を試行する（クライアントから呼び出される）
+ * @param {string} batchId - バッチID
+ * @return {Object} 回復試行結果
+ */
+function attemptBatchAutoRecovery(batchId) {
+  log('INFO', `バッチ自動回復試行: ${batchId}`);
+
+  try {
+    if (!batchId) {
+      return { status: 'error', message: 'バッチIDが必要です' };
+    }
+
+    const batchManager = new BatchTranslationManager();
+    const result = batchManager.attemptAutoRecovery(batchId);
+
+    log('INFO', `バッチ自動回復完了: ${batchId}, ステータス=${result.status}`);
+
+    return result;
+
+  } catch (error) {
+    log('ERROR', 'バッチ自動回復エラー', error);
+    return {
+      status: 'error',
+      message: error.message
+    };
+  }
+}
+
+/**
+ * 失敗したファイルを手動で再試行する（クライアントから呼び出される）
+ * @param {string} batchId - バッチID
+ * @param {Array} fileIndices - 再試行するファイルのインデックス配列
+ * @return {Object} 再試行結果
+ */
+function retryFailedFiles(batchId, fileIndices) {
+  log('INFO', `失敗ファイル手動再試行: ${batchId}, ファイル数=${fileIndices.length}`);
+
+  try {
+    if (!batchId) {
+      return { status: 'error', message: 'バッチIDが必要です' };
+    }
+
+    if (!fileIndices || !Array.isArray(fileIndices) || fileIndices.length === 0) {
+      return { status: 'error', message: 'ファイルインデックスの配列が必要です' };
+    }
+
+    const batchManager = new BatchTranslationManager();
+    const batchData = batchManager.getBatchData(batchId);
+    
+    if (!batchData) {
+      return { status: 'error', message: 'バッチが見つかりません' };
+    }
+
+    let retriedCount = 0;
+    const errors = [];
+
+    fileIndices.forEach(index => {
+      if (index >= 0 && index < batchData.files.length) {
+        const file = batchData.files[index];
+        
+        if (file.status === 'failed' && file.retryCount < CONFIG.BATCH_PROCESSING.MAX_RETRY_ATTEMPTS) {
+          file.status = 'retrying';
+          file.retryCount = (file.retryCount || 0) + 1;
+          file.errorMessage = '手動再試行';
+          
+          // 失敗数を調整
+          if (batchData.failedFiles > 0) {
+            batchData.failedFiles--;
+          }
+          
+          retriedCount++;
+          log('INFO', `[${batchId}] ファイル手動再試行: ${file.fileName} (インデックス=${index})`);
+        } else {
+          errors.push(`ファイル${index}は再試行できません (ステータス=${file.status}, 再試行回数=${file.retryCount})`);
+        }
+      } else {
+        errors.push(`無効なファイルインデックス: ${index}`);
+      }
+    });
+
+    if (retriedCount > 0) {
+      batchData.lastUpdated = new Date().getTime();
+      batchManager.saveBatchData(batchId, batchData);
+    }
+
+    log('INFO', `失敗ファイル手動再試行完了: ${batchId}, 再試行=${retriedCount}件, エラー=${errors.length}件`);
+
+    return {
+      status: retriedCount > 0 ? 'success' : 'no_files_retried',
+      batchId: batchId,
+      retriedCount: retriedCount,
+      requestedCount: fileIndices.length,
+      errors: errors,
+      message: `${retriedCount}件のファイルを再試行に設定しました`
+    };
+
+  } catch (error) {
+    log('ERROR', '失敗ファイル手動再試行エラー', error);
+    return {
+      status: 'error',
+      message: error.message
+    };
+  }
+}
+
+/**
+ * バッチ処理をキャンセルする（クライアントから呼び出される）
+ * @param {string} batchId - バッチID
+ * @param {string} reason - キャンセル理由（オプション）
+ * @return {Object} キャンセル結果
+ */
+function cancelBatchTranslation(batchId, reason = '') {
+  log('INFO', `バッチ翻訳キャンセル: ${batchId}, 理由=${reason}`);
+
+  try {
+    if (!batchId) {
+      return { status: 'error', message: 'バッチIDが必要です' };
+    }
+
+    const batchManager = new BatchTranslationManager();
+    const batchData = batchManager.getBatchData(batchId);
+    
+    if (!batchData) {
+      return { status: 'error', message: 'バッチが見つかりません' };
+    }
+
+    if (batchData.status === 'completed') {
+      return { status: 'error', message: 'バッチは既に完了しています' };
+    }
+
+    if (batchData.status === 'cancelled') {
+      return { status: 'already_cancelled', message: 'バッチは既にキャンセルされています' };
+    }
+
+    // 処理中のファイルをキャンセル状態に変更
+    let cancelledFiles = 0;
+    batchData.files.forEach(file => {
+      if (file.status === 'pending' || file.status === 'processing' || file.status === 'retrying') {
+        file.status = 'cancelled';
+        file.errorMessage = reason || 'ユーザーによるキャンセル';
+        file.completedTime = new Date().getTime();
+        cancelledFiles++;
+      }
+    });
+
+    batchData.status = 'cancelled';
+    batchData.cancelledAt = new Date().getTime();
+    batchData.cancelReason = reason || 'ユーザーによるキャンセル';
+    batchData.lastUpdated = new Date().getTime();
+
+    // バッチ履歴を更新
+    const batchHistory = new BatchHistory();
+    batchHistory.updateBatch(batchId, {
+      status: 'cancelled',
+      errorMessage: reason || 'ユーザーによるキャンセル'
+    });
+
+    batchManager.saveBatchData(batchId, batchData);
+
+    log('INFO', `バッチ翻訳キャンセル完了: ${batchId}, キャンセルファイル=${cancelledFiles}件`);
+
+    return {
+      status: 'cancelled',
+      batchId: batchId,
+      cancelledFiles: cancelledFiles,
+      completedFiles: batchData.completedFiles,
+      failedFiles: batchData.failedFiles,
+      reason: reason || 'ユーザーによるキャンセル',
+      message: `バッチ処理をキャンセルしました。${cancelledFiles}件のファイルがキャンセルされました。`
+    };
+
+  } catch (error) {
+    log('ERROR', 'バッチキャンセルエラー', error);
+    return {
+      status: 'error',
+      message: error.message
+    };
+  }
+}
+
+// --- バッチ処理用API関数（UIから呼び出される） ---
+
+/**
+ * バッチ処理を作成する（UIから呼び出される）
+ * @param {Array} fileUrls - ファイルURLの配列
+ * @param {string} targetLang - 翻訳先言語コード
+ * @param {string} dictName - 使用する辞書名（オプション）
+ * @param {string} batchName - バッチ名（オプション）
+ * @return {Object} バッチ情報
+ */
+function createBatch(fileUrls, targetLang, dictName, batchName) {
+  try {
+    const batchManager = new BatchTranslationManager();
+    return batchManager.createBatch(fileUrls, targetLang, dictName, batchName);
+  } catch (error) {
+    log('ERROR', 'createBatch API error', error);
+    return { error: error.message };
+  }
+}
+
+/**
+ * バッチ処理を開始する（UIから呼び出される）
+ * @param {string} batchId - バッチID
+ * @return {Object} 処理結果
+ */
+function startBatch(batchId) {
+  try {
+    const batchManager = new BatchTranslationManager();
+    return batchManager.startBatch(batchId);
+  } catch (error) {
+    log('ERROR', 'startBatch API error', error);
+    return { status: 'error', message: error.message };
+  }
+}
+
+/**
+ * バッチ処理のステータスを取得する（UIから呼び出される）
+ * @param {string} batchId - バッチID
+ * @return {Object} ステータス情報
+ */
+function getBatchStatus(batchId) {
+  try {
+    const batchManager = new BatchTranslationManager();
+    return batchManager.getBatchStatus(batchId);
+  } catch (error) {
+    log('ERROR', 'getBatchStatus API error', error);
+    return { status: 'error', message: error.message };
+  }
+}
+
+/**
+ * バッチ処理を一時停止する（UIから呼び出される）
+ * @param {string} batchId - バッチID
+ * @return {Object} 処理結果
+ */
+function pauseBatch(batchId) {
+  try {
+    const batchManager = new BatchTranslationManager();
+    return batchManager.pauseBatch(batchId);
+  } catch (error) {
+    log('ERROR', 'pauseBatch API error', error);
+    return { status: 'error', message: error.message };
+  }
+}
+
+/**
+ * バッチ処理を再開する（UIから呼び出される）
+ * @param {string} batchId - バッチID
+ * @return {Object} 処理結果
+ */
+function resumeBatch(batchId) {
+  try {
+    const batchManager = new BatchTranslationManager();
+    return batchManager.resumeBatch(batchId);
+  } catch (error) {
+    log('ERROR', 'resumeBatch API error', error);
+    return { status: 'error', message: error.message };
+  }
 }
 
 /**

@@ -126,6 +126,23 @@ const CONFIG = {
   ENABLE_LOGGING: true,
   LOG_LEVEL: 'INFO', // DEBUG, INFO, WARN, ERROR
 
+  // バッチ処理設定
+  BATCH_PROCESSING: {
+    MAX_BATCH_SIZE: 100, // 1回のバッチで処理する最大ファイル数
+    RESUME_TOKEN_EXPIRY: 86400000, // 再開トークンの有効期限（24時間）
+    STATUS_UPDATE_INTERVAL: 10, // 進行状況更新間隔（ファイル数）
+    MAX_RETRY_ATTEMPTS: 3, // バッチ処理の最大再試行回数
+    PARALLEL_PROCESSING_LIMIT: 5 // 並列処理する最大ファイル数
+  },
+
+  // バッチ履歴管理設定
+  BATCH_HISTORY: {
+    CLEANUP_AFTER_DAYS: 90, // 90日後にバッチ履歴をクリーンアップ
+    MAX_RECORDS_PER_SHEET: 10000, // シートあたりの最大レコード数
+    AUTO_ARCHIVE: true, // 自動アーカイブ機能
+    PERFORMANCE_METRICS: true // パフォーマンス指標の記録
+  },
+
   // ファビコン設定
   FAVICON_FILE_ID: '' // ここにGoogle Drive上の画像ファイルIDを設定
 };
